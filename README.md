@@ -129,8 +129,8 @@ This release is only considered complete once every item below is checked:
 - [x] Typecheck green — `pnpm typecheck`, 14/14 packages
 - [x] Tests green — `pnpm test`, 14/14 packages
 - [x] Build green — `pnpm build`, 11/11 packages
-- [ ] Husky hooks working — pending first real commit
-- [ ] Commitlint working
+- [x] Husky hooks working — verified on the first real commit
+- [x] Commitlint working — verified on the first real commit
 - [ ] First push to `main` completed
 
 ## Contributing
