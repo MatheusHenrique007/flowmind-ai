@@ -1,3 +1,3 @@
 import base from '@flowmind/eslint-config';
 
-export default [...base];
+export default [{ ignores: ['next-env.d.ts', '.next/**'] }, ...base];
