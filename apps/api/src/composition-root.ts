@@ -1,8 +1,10 @@
 import { ClaudeProvider } from '@flowmind/ai-claude';
 import {
+  CreateWorkflow,
   ExecuteWorkflow,
   GetWorkflowRun,
   ListWorkflowRuns,
+  UpdateWorkflow,
   type WorkflowQueue,
 } from '@flowmind/application';
 import { SlackDestination } from '@flowmind/destinations-slack';
@@ -40,6 +42,8 @@ export interface HealthReport {
 
 export interface CompositionRoot {
   workflowQueue: WorkflowQueue;
+  createWorkflow: CreateWorkflow;
+  updateWorkflow: UpdateWorkflow;
   getWorkflowRun: GetWorkflowRun;
   listWorkflowRuns: ListWorkflowRuns;
   worker: WorkflowWorker;
@@ -77,6 +81,8 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
 
   return {
     workflowQueue,
+    createWorkflow: new CreateWorkflow(workflowRepository),
+    updateWorkflow: new UpdateWorkflow(workflowRepository),
     getWorkflowRun: new GetWorkflowRun(workflowRunRepository),
     listWorkflowRuns: new ListWorkflowRuns(workflowRunRepository),
     worker,
