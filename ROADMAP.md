@@ -55,9 +55,14 @@ webhook, watch the run happen, see the Slack message land.
 
 - Fixed workflow: **Webhook trigger → Claude (summarize/classify) → Slack notification**
 - Domain model for a minimal workflow/run/step
+- A Workflow Engine that depends only on the `AIProvider` and new `Destination` contracts —
+  never on `ClaudeProvider`/`SlackDestination` directly (ADR-0002); steps hand off through a
+  shared `ExecutionContext`, never call each other directly
+- New `packages/destinations/{contracts,factory,slack}`, mirroring the `packages/ai/*` pattern
 - Application use case to execute that single workflow
 - Infrastructure adapters: webhook receiver, Claude via `ai-factory` (only `@flowmind/ai-claude`
-  gets its vendor SDK installed — OpenAI/Gemini adapters stay stubs), Slack notification sender
+  gets its vendor SDK installed — OpenAI/Gemini adapters stay stubs), Slack via the new
+  `destinations/factory`
 - Just enough persistence (Prisma installed and wired here, not before) to record a workflow run
   and its steps, and to show a run history
 - Tests covering the execution path
