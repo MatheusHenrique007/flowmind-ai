@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
-import { StepType, WorkflowId } from '@flowmind/domain';
+import {
+  DestinationKind,
+  Provider,
+  StepType,
+  Workflow,
+  WorkflowId,
+  WorkflowStep,
+} from '@flowmind/domain';
 import { PrismaClient } from '@prisma/client';
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -63,5 +70,55 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
       StepType.AI,
       StepType.DESTINATION,
     ]);
+  });
+
+  it('saves a new workflow and reads it back with the same steps', async () => {
+    const workflow = Workflow.create({
+      name: 'Created via save()',
+      steps: [
+        WorkflowStep.trigger({ kind: 'webhook' }),
+        WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
+        WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
+      ],
+    });
+    createdIds.push(workflow.id.value);
+
+    await repository.save(workflow);
+    const reloaded = await repository.findById(workflow.id);
+
+    expect(reloaded?.name).toBe('Created via save()');
+    expect(reloaded?.steps.map((step) => step.type)).toEqual([
+      StepType.TRIGGER,
+      StepType.AI,
+      StepType.DESTINATION,
+    ]);
+  });
+
+  it('overwrites an existing workflow on a second save()', async () => {
+    const workflow = Workflow.create({
+      name: 'Original name',
+      steps: [
+        WorkflowStep.trigger({ kind: 'webhook' }),
+        WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
+        WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
+      ],
+    });
+    createdIds.push(workflow.id.value);
+    await repository.save(workflow);
+
+    const updated = Workflow.create({
+      id: workflow.id,
+      name: 'Updated name',
+      steps: [
+        WorkflowStep.trigger({ kind: 'webhook' }),
+        WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Classify urgency.' }),
+        WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
+      ],
+    });
+    await repository.save(updated);
+
+    const reloaded = await repository.findById(workflow.id);
+    expect(reloaded?.name).toBe('Updated name');
+    expect(reloaded?.steps[1]?.config).toMatchObject({ instruction: 'Classify urgency.' });
   });
 });

@@ -1,5 +1,6 @@
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { CompositionRoot } from './composition-root.js';
@@ -7,9 +8,14 @@ import { buildCompositionRoot } from './composition-root.js';
 import { loadEnv } from './env.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerWorkflowRunRoutes } from './routes/workflow-runs.js';
+import { registerWorkflowRoutes } from './routes/workflows.js';
 
 export async function buildServer(root: CompositionRoot): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
+
+  // Permissive in this release: there is no auth yet, and the editor
+  // (apps/web) needs to call this API directly from the browser.
+  await app.register(cors, { origin: true });
 
   // OpenAPI/Swagger wiring lands in a later release, once more routes exist to document.
   app.get('/health', async () => root.checkHealth());
@@ -18,6 +24,10 @@ export async function buildServer(root: CompositionRoot): Promise<FastifyInstanc
   await registerWorkflowRunRoutes(app, {
     getWorkflowRun: root.getWorkflowRun,
     listWorkflowRuns: root.listWorkflowRuns,
+  });
+  await registerWorkflowRoutes(app, {
+    createWorkflow: root.createWorkflow,
+    updateWorkflow: root.updateWorkflow,
   });
 
   return app;

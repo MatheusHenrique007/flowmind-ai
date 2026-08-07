@@ -8,7 +8,7 @@ import {
   WorkflowStep,
   WorkflowStepId,
 } from '@flowmind/domain';
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 
 interface StoredStep {
   id: string;
@@ -33,6 +33,22 @@ export class PrismaWorkflowRepository implements WorkflowRepository {
     const steps = storedSteps.map((stored) => this.toDomainStep(stored));
 
     return Workflow.create({ id: WorkflowId.create(row.id), name: row.name, steps });
+  }
+
+  async save(workflow: Workflow): Promise<void> {
+    const steps = workflow.steps.map((step) =>
+      this.toStoredStep(step),
+    ) as unknown as Prisma.InputJsonValue;
+
+    await this.prisma.workflow.upsert({
+      where: { id: workflow.id.value },
+      create: { id: workflow.id.value, name: workflow.name, steps },
+      update: { name: workflow.name, steps },
+    });
+  }
+
+  private toStoredStep(step: WorkflowStep): StoredStep {
+    return { id: step.id.value, type: step.type, config: step.config };
   }
 
   private toDomainStep(stored: StoredStep): WorkflowStep {
