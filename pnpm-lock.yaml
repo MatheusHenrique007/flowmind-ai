@@ -255,6 +255,24 @@ importers:
         specifier: ^2.1.2
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/destinations/contracts:
+    devDependencies:
+      '@flowmind/eslint-config':
+        specifier: workspace:*
+        version: link:../../eslint-config
+      '@flowmind/tsconfig':
+        specifier: workspace:*
+        version: link:../../tsconfig
+      eslint:
+        specifier: ^9.12.0
+        version: 9.39.5(jiti@2.6.1)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/domain:
     devDependencies:
       '@flowmind/eslint-config':
@@ -266,6 +284,37 @@ importers:
       '@types/node':
         specifier: ^20.16.10
         version: 20.19.43
+      eslint:
+        specifier: ^9.12.0
+        version: 9.39.5(jiti@2.6.1)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@20.19.43)
+
+  packages/engine:
+    dependencies:
+      '@flowmind/ai-contracts':
+        specifier: workspace:*
+        version: link:../ai/contracts
+      '@flowmind/application':
+        specifier: workspace:*
+        version: link:../application
+      '@flowmind/destinations-contracts':
+        specifier: workspace:*
+        version: link:../destinations/contracts
+      '@flowmind/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      '@flowmind/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@flowmind/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       eslint:
         specifier: ^9.12.0
         version: 9.39.5(jiti@2.6.1)

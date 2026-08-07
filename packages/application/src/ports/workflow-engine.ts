@@ -1,4 +1,9 @@
-import type { ExecutionContext, Workflow, WorkflowStepResult } from '@flowmind/domain';
+import type {
+  ExecutionContext,
+  Workflow,
+  WorkflowStepId,
+  WorkflowStepResult,
+} from '@flowmind/domain';
 
 /**
  * Explicit, typed result of running a Workflow — the Application layer never
@@ -8,6 +13,10 @@ export interface WorkflowExecutionResult {
   readonly success: boolean;
   readonly context: ExecutionContext;
   readonly stepResults: readonly WorkflowStepResult[];
+  /** How many steps actually ran, whether they succeeded or not. */
+  readonly stepsExecuted: number;
+  /** Set only when `success` is false — the step where execution stopped. */
+  readonly failedAtStep?: WorkflowStepId;
 }
 
 /**
