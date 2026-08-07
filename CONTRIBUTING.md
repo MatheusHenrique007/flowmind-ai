@@ -9,11 +9,16 @@ abstractions ahead of a real product requirement.
 ## Releases, not sprints
 
 Work ships as **Releases** (`v0.1.0`, `v0.2.0`, ...) — see [ROADMAP.md](ROADMAP.md). Every
-release must satisfy two rules before it's considered closed:
+release must satisfy these rules before it's considered closed:
 
 - **Demo rule**: if the release can't be demoed in under two minutes, it was scoped too large.
 - **Recruiter rule**: ask "would a Tech Lead opening this repo today be impressed?" If not, the
   release isn't done.
+- **No technical debt carryover**: a release must never leave the codebase with more debt than
+  it started with. If a release genuinely creates debt (a deliberate shortcut, a known gap), the
+  very next release must pay it down — it cannot be pushed further down the roadmap.
+- **Honesty rule**: never say a Release "works" without having verified it. Document
+  limitations explicitly (as in v0.1.0's Docker Compose gap) rather than hiding them.
 
 ## Branch strategy
 
@@ -53,8 +58,26 @@ pnpm build
 For frontend changes, also run the Playwright suite:
 
 ```bash
-pnpm --filter web test:e2e
+pnpm --filter @flowmind/web test:e2e
 ```
+
+## Release validation pipeline
+
+Starting with v0.2.0, closing a release requires two more steps after lint/typecheck/test/build,
+run manually (not yet automated in CI):
+
+```
+lint → typecheck → test → build → Smoke Test → Demo Test
+```
+
+**Smoke Test** — confirm every runtime piece the release touches actually starts and connects:
+does the API start, does the web app start, does the worker start (once one exists), does Redis
+connect, does Postgres connect. A green CI build proves the code compiles and unit tests pass —
+it does not prove the system boots.
+
+**Demo Test** — before closing, answer: "could I record a 2-minute video showing this release
+working end to end?" If not, the release isn't done — either finish it or cut scope until the
+answer is yes.
 
 ## Architecture Decision Records (ADRs)
 
