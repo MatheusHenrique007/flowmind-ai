@@ -1,130 +1,189 @@
-# FlowMind AI
+<div align="center">
 
-**Current Version**: v0.2.0 (in progress)
-**Status**: Execution Engine
-**Next**: v0.3.0 — additional triggers/providers/destinations
+<!-- TODO: replace with a real logo (docs/assets/logo.png) -->
 
-FlowMind AI is an AI-powered workflow automation platform (B2B SaaS) in the spirit of Zapier or
-n8n: users compose triggers, AI steps, and integrations into automated workflows through a
-visual editor. **v0.1.0** laid down the monorepo foundation, tooling, and CI. **v0.2.0** proves
-the core mechanic end to end with one hardcoded workflow — see
-[docs/prd/v0.2.0-execution-engine.md](docs/prd/v0.2.0-execution-engine.md).
+# 🧠 FlowMind AI
 
-As of v0.2.0, the foundation is frozen: no further infrastructure, tooling, or monorepo
-reorganization work unless it's a bug fix or a critical correction. All effort goes into product
-features that move FlowMind AI toward a usable MVP.
+**AI-powered workflow automation — webhook in, Claude in the middle, Slack out.**
 
-## Tech stack
+[![CI](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](package.json)
+[![pnpm](https://img.shields.io/badge/pnpm-workspaces-F69220?logo=pnpm&logoColor=white)](pnpm-workspace.yaml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**Frontend**
+**Current Version**: v0.2.1 · **Status**: Execution Engine, Product Polish · **Next**: v0.3.0
 
-- Next.js 15 (App Router), React 19, TypeScript
-- Tailwind CSS
-- React Flow (visual workflow editor)
-- TanStack Query, Zustand
-- React Hook Form + Zod
+</div>
 
-**Backend**
+---
 
-- Node.js, TypeScript, Fastify
-- Prisma + PostgreSQL
-- Redis + BullMQ (background jobs/queues)
-- Zod (validation)
-- JWT (access + refresh tokens)
-- OpenAPI/Swagger
+FlowMind AI is a B2B SaaS workflow automation platform, in the spirit of Zapier or n8n: users
+compose triggers, AI steps, and integrations into automated workflows. **v0.1.0** built the
+monorepo foundation; **v0.2.0** proved the execution engine end to end with one hardcoded
+workflow; **v0.2.1** (this release) turns that technical MVP into something you can clone,
+configure, and demo in under 10 minutes.
 
-Frozen as the official stack (see [ADR-0001](docs/adr/0001-foundation-decisions.md)). As of
-v0.2.0, Prisma and BullMQ are wired for real; OpenAI/Gemini adapters remain stubs until a later
-release actually needs them (per the same "install only what's wired" rule).
+No visual editor yet — see [Roadmap](#roadmap) for what's next.
 
-**AI**
+## Key features (v0.2.1)
 
-- Multi-provider abstraction: OpenAI, Anthropic Claude, Google Gemini
-- Provider-agnostic `AIProvider` port with a factory for provider selection. `ClaudeProvider` is
-  real (`@anthropic-ai/sdk`) as of v0.2.0; OpenAI/Gemini adapters stay stubs until wired.
-
-**Infrastructure**
-
-- Docker / Docker Compose (Postgres, Redis)
-- pnpm workspaces + Turborepo (monorepo, task orchestration)
-- GitHub Actions (CI: lint, typecheck, test, build, e2e)
-
-**Quality**
-
-- Vitest (unit/integration tests)
-- Playwright (end-to-end tests)
-- ESLint 9 (flat config) + Prettier
-- Husky + lint-staged + commitlint (Conventional Commits)
+- **Webhook → AI → Slack**, wired end to end: a `POST` request triggers a BullMQ job, a Worker
+  runs the Engine, Claude summarizes the input, Slack gets notified.
+- **Full run history**: every execution is persisted with per-step status, timing, and errors —
+  queryable via `GET /workflow-runs`.
+- **Dependency health check**: `GET /health` reports Postgres, Redis, the queue, and whether AI/
+  Slack credentials are even configured — before you go looking for why something failed.
+- **One-command demo**: `pnpm demo` brings up dependencies, seeds data, boots the API, fires the
+  webhook, and prints the result — no manual steps, no manual SQL.
+- **Clean Architecture, strictly enforced**: Domain and Application layers have zero
+  infrastructure imports — verified by a dedicated ESLint rule, not just a comment.
 
 ## Architecture
 
-FlowMind AI follows **Clean Architecture** with **manual dependency injection** (no DI
-framework, no decorators):
+Clean Architecture, manual dependency injection (no DI framework, no decorators) — full write-up
+in [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md).
 
-- **Domain** — entities, value objects, domain events. No external dependencies.
-- **Application** — use cases and ports, depends only on Domain.
-- **Infrastructure** — implements Application ports (Prisma, Redis, BullMQ, AI adapters).
-- **Presentation** — HTTP layer (Fastify routes) and the web frontend (Next.js).
+```
+User
+  │
+  ▼
+Webhook  ──POST /webhooks/:workflowId──▶  Fastify API
+                                              │  enqueues only
+                                              ▼
+                                            Queue (BullMQ / Redis)
+                                              │
+                                              ▼
+                                            Worker  ──▶  ExecuteWorkflow (Application)
+                                                              │
+                                                              ▼
+                                                          Engine (packages/engine)
+                                                              │  Trigger → AI → Destination
+                                                              ▼
+                                                          Claude  →  Slack
+                                                              │
+                                                              ▼
+                                                          PostgreSQL (run history)
+```
 
-See [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) for the full write-up,
-including the AI provider port pattern.
+- **Domain** (`packages/domain`) — `Workflow`/`WorkflowRun`/`WorkflowStep`, zero external deps.
+- **Application** (`packages/application`) — use cases (`ExecuteWorkflow`, `GetWorkflowRun`,
+  `ListWorkflowRuns`) and the ports Infrastructure implements. Depends only on Domain.
+- **Engine** (`packages/engine`) — runs a Workflow's steps sequentially through a
+  `StepExecutorRegistry`; knows only the `AIProvider`/`Destination` contracts, never Claude or
+  Slack directly.
+- **Infrastructure** — Prisma repositories, `ClaudeProvider`, `SlackDestination`, the BullMQ
+  queue/worker. Implements Application's ports.
+- **Presentation** (`apps/api`) — Fastify routes and the composition root that wires everything.
 
 ## Monorepo structure
 
 ```
 flowmind-ai/
 ├── apps/
-│   ├── api/                 # Fastify HTTP API (Presentation)
-│   └── web/                 # Next.js frontend (Presentation)
+│   ├── api/                     # Fastify HTTP API (Presentation) + composition root
+│   └── web/                     # Next.js frontend (Presentation) — placeholder until v0.3+
 ├── packages/
-│   ├── domain/               # @flowmind/domain
-│   ├── application/          # @flowmind/application
-│   ├── infrastructure/       # @flowmind/infrastructure
-│   ├── shared/                # @flowmind/shared (Zod schemas, shared types)
-│   ├── eslint-config/         # @flowmind/eslint-config
-│   ├── tsconfig/              # @flowmind/tsconfig
-│   └── ai/
-│       ├── contracts/         # @flowmind/ai-contracts (AIProvider port)
-│       ├── factory/           # @flowmind/ai-factory
-│       ├── openai/            # @flowmind/ai-openai
-│       ├── claude/            # @flowmind/ai-claude
-│       └── gemini/            # @flowmind/ai-gemini
+│   ├── domain/                  # @flowmind/domain
+│   ├── application/             # @flowmind/application
+│   ├── engine/                  # @flowmind/engine
+│   ├── infrastructure/          # @flowmind/infrastructure (Prisma, BullMQ, health check)
+│   ├── ai/
+│   │   ├── contracts/           # @flowmind/ai-contracts (AIProvider port)
+│   │   ├── factory/             # @flowmind/ai-factory
+│   │   ├── claude/              # @flowmind/ai-claude — real (@anthropic-ai/sdk)
+│   │   ├── openai/               # @flowmind/ai-openai — stub, not wired yet
+│   │   └── gemini/               # @flowmind/ai-gemini — stub, not wired yet
+│   └── destinations/
+│       ├── contracts/           # @flowmind/destinations-contracts (Destination port)
+│       └── slack/                # @flowmind/destinations-slack — real (fetch, no SDK)
 ├── docs/
-│   ├── architecture/
-│   ├── adr/
-│   ├── prd/
-│   ├── api/
-│   └── database/
-└── docker-compose.yml
+│   ├── architecture/            # ARCHITECTURE.md, tech-stack.md
+│   ├── adr/                     # Architecture Decision Records
+│   ├── prd/                     # Product Requirements Docs per release
+│   └── demo/                    # demo-script.md
+├── scripts/
+│   └── demo.mjs                 # `pnpm demo`
+└── docker-compose.yml            # Postgres + Redis
 ```
 
-## Getting started
+## Tech stack
+
+**Backend**: Node.js, TypeScript, Fastify, Prisma + PostgreSQL, Redis + BullMQ, Zod, Anthropic
+SDK. **Frontend**: Next.js 15, React 19, Tailwind, React Flow, TanStack Query, Zustand (scaffolded,
+not the focus of this release). **Infra**: Docker Compose, pnpm workspaces + Turborepo, GitHub
+Actions. **Quality**: Vitest, Playwright, ESLint 9, Prettier, Husky.
+
+Frozen as the official stack — see [ADR-0001](docs/adr/0001-foundation-decisions.md). Full list:
+[docs/architecture/tech-stack.md](docs/architecture/tech-stack.md).
+
+## Installation
+
+Requires Node.js ≥20, pnpm ≥9, and Docker (for Postgres/Redis).
 
 ```bash
-# 1. Install dependencies
+git clone https://github.com/MatheusHenrique007/flowmind-ai.git
+cd flowmind-ai
 pnpm install
-
-# 2. Start local infrastructure (Postgres + Redis)
-docker compose up -d
-
-# 3. Configure environment
-cp .env.example .env
-# then fill in the required secrets
-
-# 4. Run everything in dev mode
-pnpm dev
-
-# Other useful commands
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm test:e2e
 ```
 
-## Definition of Done — Release v0.1.0
+## Configuring `.env`
 
-This release is only considered complete once every item below is checked:
+```bash
+cp .env.example .env
+```
+
+`.env.example` documents every variable and separates **required** (`DATABASE_URL`, `REDIS_URL`
+— the app won't boot without these; the defaults already match `docker-compose.yml`) from
+**optional** (`ANTHROPIC_API_KEY`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL` — the app boots without
+them, `GET /health` reports them as `not_configured`, and the matching workflow step fails with a
+clear error instead of crashing).
+
+## Running locally
+
+```bash
+docker compose up -d   # Postgres + Redis
+pnpm seed               # creates the demo workflow
+pnpm --filter @flowmind/api dev
+```
+
+```bash
+curl http://localhost:3001/health
+```
+
+## Run the demo
+
+```bash
+pnpm demo
+```
+
+This single command validates your environment, starts Postgres/Redis, seeds the demo workflow,
+boots the API, fires the webhook, and prints each step's result — including a clear error message
+if `ANTHROPIC_API_KEY`/`SLACK_BOT_TOKEN` aren't set, rather than a crash. For the manual,
+narratable version (useful for recording a video), see
+[docs/demo/demo-script.md](docs/demo/demo-script.md).
+
+## Screenshots
+
+<!-- TODO: add real screenshots once the visual editor (v0.3+) exists -->
+
+_No UI yet — this release is API + Worker only. Screenshots land once the visual editor ships._
+
+## Demo GIF
+
+<!-- TODO: record a ~2-minute terminal recording of `pnpm demo` and embed it here -->
+
+## Roadmap
+
+- **v0.1.0** — Monorepo foundation, tooling, CI ✅
+- **v0.2.0** — Execution engine proven end to end (Webhook → Claude → Slack) ✅
+- **v0.2.1** — Product polish: README, demo command, health check, seed script (this release) ✅
+- **v0.3.0** — Additional triggers/providers/destinations, building on the same contracts
+- **Future** — Visual workflow editor, multi-tenant auth, billing, node marketplace
+
+Full detail: [ROADMAP.md](ROADMAP.md).
+
+## Definition of Done — Release v0.1.0
 
 - [x] Monorepo created
 - [x] GitHub configured (templates, CODEOWNERS, branch protection on `main`)
@@ -133,15 +192,10 @@ This release is only considered complete once every item below is checked:
 - [x] Docker Compose brings up PostgreSQL and Redis — verified during v0.2.0 once Docker Desktop's
       backend was fixed: `docker compose up -d` starts both containers, Prisma migrations and the
       full webhook → Slack pipeline ran against them for real
-- [x] API starts correctly (`/health` responds) — verified locally: `{"status":"ok"}`
+- [x] API starts correctly (`/health` responds) — verified locally
 - [x] Web starts correctly (landing page renders) — verified locally
-- [x] Lint green — `pnpm lint`, 14/14 packages
-- [x] Typecheck green — `pnpm typecheck`, 14/14 packages
-- [x] Tests green — `pnpm test`, 14/14 packages
-- [x] Build green — `pnpm build`, 11/11 packages
-- [x] Husky hooks working — verified on the first real commit
-- [x] Commitlint working — verified on the first real commit
-- [x] First push to `main` completed
+- [x] Lint/typecheck/test/build green
+- [x] Husky/commitlint working, first push to `main` completed
 
 ## Definition of Done — Release v0.2.0
 
@@ -150,15 +204,24 @@ This release is only considered complete once every item below is checked:
 - [x] Engine (StepExecutorRegistry + 3 executors, sequential, Clock-timestamped) — 16 unit tests
 - [x] Infrastructure: Prisma repositories, ClaudeProvider, SlackDestination, BullMQ queue/worker,
       Fastify routes, composition root
-- [x] Prisma integration tests run for real against Postgres (locally and in CI — see
-      `.github/workflows/ci.yml`'s `test` job)
-- [x] Smoke Test (per CONTRIBUTING.md): booted `apps/api` against real Postgres + Redis,
-      `POST /webhooks/webhook-to-slack-demo` → queued → Worker executed `ExecuteWorkflow` →
-      Trigger step succeeded → AI step called the real Anthropic API and failed on an
-      intentionally fake key → run correctly recorded `FAILED`, stopped before the Destination
-      step, visible via `GET /workflow-runs`. Proves the full wiring; a real `ANTHROPIC_API_KEY`
-      and `SLACK_BOT_TOKEN` are what's needed for the end-to-end Slack demo itself.
+- [x] Prisma integration tests run for real against Postgres (locally and in CI)
+- [x] Smoke Test: booted `apps/api` against real Postgres + Redis, fired the webhook, watched
+      Trigger succeed, AI call the real Anthropic API and fail on an intentionally fake key, run
+      correctly recorded `FAILED`, stopped before the Destination step
 - [x] Lint/typecheck/test/build green across all 22 packages/apps
+
+## Definition of Done — Release v0.2.1
+
+- [x] Professional README (this file)
+- [x] `pnpm demo` — validates env, starts dependencies, seeds, runs the flow, reports the result
+- [x] `pnpm seed` — populates the demo workflow, no manual SQL ever required
+- [x] `.env.example` documents every variable, Required vs Optional clearly separated
+- [x] `GET /health` reports Postgres/Redis/queue connectivity and AI/Slack configuration status
+- [x] [docs/demo/demo-script.md](docs/demo/demo-script.md) — ~2-minute manual walkthrough
+- [x] Architecture diagram (this file + ARCHITECTURE.md)
+- [x] Lint/typecheck/test/build green — no changes to Domain/Application/Engine business logic;
+      Infrastructure/Presentation touched only for the health check and dotenv loading (see PR
+      description for the full list and the real bugs this release's manual testing caught)
 
 ## Contributing
 

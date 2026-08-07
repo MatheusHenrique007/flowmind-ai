@@ -1,4 +1,11 @@
+import { fileURLToPath } from 'node:url';
+
 import { PrismaClient } from '@prisma/client';
+import { config as loadDotEnv } from 'dotenv';
+
+// cwd is packages/infrastructure when run via `pnpm --filter`, not the repo
+// root — resolve .env relative to this file instead of relying on cwd.
+loadDotEnv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
 
 const prisma = new PrismaClient();
 

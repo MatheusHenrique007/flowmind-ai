@@ -24,7 +24,7 @@ Demo Test`. Smoke Test confirms every runtime piece actually boots and connects 
 This roadmap is intentionally coarse and undated beyond the current release — scope, not
 calendar dates, is what we commit to.
 
-## v0.1.0 — Foundation (in progress)
+## v0.1.0 — Foundation ✅
 
 Monorepo scaffolding only, no product features. Nothing here is user-demoable by design — it's
 the one release exempt from the demo rule, since "foundation exists and is green" is the
@@ -42,7 +42,7 @@ deliverable itself:
 
 Definition of Done for this release lives in `README.md`.
 
-## v0.2.0 — Minimal end-to-end execution engine (next)
+## v0.2.0 — Minimal end-to-end execution engine ✅
 
 Full PRD: [docs/prd/v0.2.0-execution-engine.md](docs/prd/v0.2.0-execution-engine.md).
 
@@ -69,6 +69,24 @@ webhook, watch the run happen, see the Slack message land.
 
 Once this works end to end, the same shape repeats for Email, then GitHub, then Notion — never
 before this one is proven.
+
+## v0.2.1 — Product Polish ✅
+
+No product features, no architecture changes, no changes to Domain/Application/Engine/
+Infrastructure business logic. Goal: turn the v0.2.0 technical MVP into something a recruiter (or
+anyone) can clone, configure, and demo in under 10 minutes.
+
+- Professional README (badges, architecture diagram, install/config/run instructions, roadmap)
+- `pnpm demo` — one command: validates env, starts dependencies, seeds, runs the flow, reports
+  the result clearly, including when AI/Slack credentials aren't set
+- `pnpm seed` — populates the demo workflow, no manual `INSERT` ever required
+- `.env.example` rewritten: Required vs Optional clearly separated, every variable documented
+- `GET /health` now reports Postgres/Redis/queue connectivity and AI/Slack configuration status,
+  instead of a bare `{"status":"ok"}`
+- [docs/demo/demo-script.md](docs/demo/demo-script.md) — ~2-minute manual walkthrough
+- Small, necessary touches to make the above possible: `ANTHROPIC_API_KEY`/`SLACK_BOT_TOKEN`
+  became optional (the app boots and degrades gracefully without them) and `.env` loading was
+  added at the process entry points — none of it touches business rules
 
 ## Future (unscheduled, directional only)
 

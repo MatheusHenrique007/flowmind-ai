@@ -1,5 +1,6 @@
 // Infrastructure layer: Prisma repositories, BullMQ queue/worker, and other
 // implementations of ports defined in @flowmind/application.
+export * from './health/check-health.js';
 export * from './persistence/prisma-workflow-repository.js';
 export * from './persistence/prisma-workflow-run-repository.js';
 export * from './persistence/create-prisma-client.js';

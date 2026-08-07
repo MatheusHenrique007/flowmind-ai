@@ -17,6 +17,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
+    "seed": "pnpm --filter @flowmind/infrastructure db:seed",
+    "demo": "node scripts/demo.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
