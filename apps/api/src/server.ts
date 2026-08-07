@@ -1,22 +1,41 @@
 import { pathToFileURL } from 'node:url';
 
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 
+import type { CompositionRoot } from './composition-root.js';
+import { buildCompositionRoot } from './composition-root.js';
 import { loadEnv } from './env.js';
 import { getHealthStatus } from './health.js';
+import { registerWebhookRoutes } from './routes/webhooks.js';
+import { registerWorkflowRunRoutes } from './routes/workflow-runs.js';
 
-export function buildServer() {
+export async function buildServer(root: CompositionRoot): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
 
-  // OpenAPI/Swagger wiring lands in a later release, once real routes exist to document.
+  // OpenAPI/Swagger wiring lands in a later release, once more routes exist to document.
   app.get('/health', async () => getHealthStatus());
+
+  await registerWebhookRoutes(app, { workflowQueue: root.workflowQueue });
+  await registerWorkflowRunRoutes(app, {
+    getWorkflowRun: root.getWorkflowRun,
+    listWorkflowRuns: root.listWorkflowRuns,
+  });
 
   return app;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const env = loadEnv();
-  const app = buildServer();
+  const root = buildCompositionRoot(env);
+  const app = await buildServer(root);
+
+  const shutdown = async (): Promise<void> => {
+    await app.close();
+    await root.shutdown();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 
   await app.listen({ port: env.PORT, host: '0.0.0.0' });
 }
