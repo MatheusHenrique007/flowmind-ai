@@ -1,5 +1,6 @@
-// Application layer: use cases, application services, and ports consumed by use cases.
-// Depends only on @flowmind/domain. Use case structure (to be added in later sprints):
-//   src/use-cases/<feature>/<verb-noun>.use-case.ts
-//   src/ports/<port-name>.port.ts
-export {};
+// Application layer: use cases, ports, and application-level errors.
+// Depends only on @flowmind/domain — enforced by eslint.config.js's
+// no-restricted-imports rule, same as packages/domain (ADR-0001 Decision 2).
+export * from './use-cases/index.js';
+export * from './ports/index.js';
+export * from './errors/index.js';
