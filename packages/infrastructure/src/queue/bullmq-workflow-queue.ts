@@ -18,4 +18,14 @@ export class BullMQWorkflowQueue implements WorkflowQueue {
   async enqueue(workflowId: WorkflowId, payload: unknown): Promise<void> {
     await this.queue.add(WORKFLOW_EXECUTION_QUEUE_NAME, { workflowId: workflowId.value, payload });
   }
+
+  /** Connectivity probe for GET /health — not part of the WorkflowQueue port. */
+  async ping(): Promise<'ok' | 'error'> {
+    try {
+      await this.queue.getJobCounts();
+      return 'ok';
+    } catch {
+      return 'error';
+    }
+  }
 }

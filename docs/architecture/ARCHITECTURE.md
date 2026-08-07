@@ -2,8 +2,8 @@
 
 FlowMind AI follows **Clean Architecture** with **manual dependency injection** — no DI
 framework, no decorators, no reflection-based magic. Dependencies are wired explicitly at the
-composition root (e.g. `apps/api/src/server.ts` in later sprints) by constructing objects and
-passing them in through constructors/functions.
+composition root (`apps/api/src/composition-root.ts`) by constructing objects and passing them
+in through constructors/functions.
 
 ## Layers
 
@@ -39,13 +39,51 @@ the composition root.
 
 ## Package/app to layer mapping
 
-| Layer          | Package(s) / app(s)                                                                                                                  |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Domain         | `packages/domain` (`@flowmind/domain`)                                                                                               |
-| Application    | `packages/application` (`@flowmind/application`)                                                                                     |
-| Infrastructure | `packages/infrastructure` (`@flowmind/infrastructure`), `packages/ai/openai`, `packages/ai/claude`, `packages/ai/gemini`             |
-| Presentation   | `apps/api` (`@flowmind/api`), `apps/web` (`@flowmind/web`)                                                                           |
-| Cross-cutting  | `packages/shared` (Zod schemas/types used across layers), `packages/ai/contracts` (port), `packages/ai/factory` (composition helper) |
+| Layer          | Package(s) / app(s)                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Domain         | `packages/domain` (`@flowmind/domain`)                                                                                                                       |
+| Application    | `packages/application` (`@flowmind/application`)                                                                                                             |
+| Engine         | `packages/engine` (`@flowmind/engine`) — depends on Domain + Application (port types) + the AI/Destination contracts only, never a vendor SDK. See ADR-0002. |
+| Infrastructure | `packages/infrastructure`, `packages/ai/{openai,claude,gemini}`, `packages/destinations/{contracts,slack}`                                                   |
+| Presentation   | `apps/api` (`@flowmind/api`), `apps/web` (`@flowmind/web`)                                                                                                   |
+| Cross-cutting  | `packages/shared`, `packages/ai/contracts` + `packages/ai/factory` (AI port/factory), `packages/destinations/contracts` (Destination port)                   |
+
+## Runtime execution flow (v0.2.0)
+
+The one hardcoded workflow this release proves, from an inbound webhook to a Slack message and a
+queryable record in Postgres:
+
+```
+User
+  │
+  ▼
+Webhook  ──POST /webhooks/:workflowId──▶  Fastify (apps/api)
+                                              │  enqueues only — never calls ExecuteWorkflow
+                                              │  or the Engine directly
+                                              ▼
+                                            Queue (BullMQ / Redis)
+                                              │
+                                              ▼
+                                            Worker (apps/api, same composition root)
+                                              │  calls ExecuteWorkflow only
+                                              ▼
+                                            Engine (packages/engine)
+                                              │  StepExecutorRegistry resolves each step
+                                              │  in sequence — Trigger, then AI, then Destination
+                                              ▼
+                                            Claude  (ClaudeProvider via the AIProvider port)
+                                              │  result written to ExecutionContext
+                                              ▼
+                                            Slack  (SlackDestination via the Destination port)
+                                              │
+                                              ▼
+                                            PostgreSQL (WorkflowRun + WorkflowStepResult,
+                                                         via PrismaWorkflowRunRepository)
+```
+
+Every arrow after "Worker" only ever touches a port/contract at the call site — the concrete
+`ClaudeProvider`/`SlackDestination`/`PrismaWorkflowRunRepository` instances are wired once, at
+the composition root (`apps/api/src/composition-root.ts`), and nowhere else.
 
 ## The AIProvider port pattern
 

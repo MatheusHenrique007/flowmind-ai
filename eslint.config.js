@@ -8,4 +8,14 @@ export default [
   {
     ignores: ['apps/**', 'packages/**'],
   },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+      },
+    },
+  },
 ];

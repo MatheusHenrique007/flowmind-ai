@@ -15,6 +15,7 @@ import {
   TriggerExecutor,
 } from '@flowmind/engine';
 import {
+  checkHealth,
   createPrismaClient,
   createRedisConnection,
   createWorkflowQueue,
@@ -26,12 +27,23 @@ import {
 } from '@flowmind/infrastructure';
 
 import type { Env } from './env.js';
+import { buildHealthReport } from './health.js';
+
+export interface HealthReport {
+  api: 'ok';
+  postgres: 'ok' | 'error';
+  redis: 'ok' | 'error';
+  queue: 'ok' | 'error';
+  anthropic: 'configured' | 'not_configured';
+  slack: 'configured' | 'not_configured';
+}
 
 export interface CompositionRoot {
   workflowQueue: WorkflowQueue;
   getWorkflowRun: GetWorkflowRun;
   listWorkflowRuns: ListWorkflowRuns;
   worker: WorkflowWorker;
+  checkHealth: () => Promise<HealthReport>;
   shutdown: () => Promise<void>;
 }
 
@@ -68,6 +80,18 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
     getWorkflowRun: new GetWorkflowRun(workflowRunRepository),
     listWorkflowRuns: new ListWorkflowRuns(workflowRunRepository),
     worker,
+    checkHealth: async () => {
+      const [dependencies, queue] = await Promise.all([
+        checkHealth(prisma, redisConnection),
+        workflowQueue.ping(),
+      ]);
+      return buildHealthReport(
+        dependencies,
+        queue,
+        Boolean(env.ANTHROPIC_API_KEY),
+        Boolean(env.SLACK_BOT_TOKEN),
+      );
+    },
     shutdown: async () => {
       await worker.close();
       await prisma.$disconnect();
