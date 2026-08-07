@@ -70,5 +70,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@flowmind/web
-      - run: npx playwright install --with-deps
+      - run: pnpm --filter @flowmind/web exec playwright install --with-deps
       - run: pnpm --filter @flowmind/web test:e2e
