@@ -58,11 +58,15 @@ webhook, watch the run happen, see the Slack message land.
 - A Workflow Engine that depends only on the `AIProvider` and new `Destination` contracts —
   never on `ClaudeProvider`/`SlackDestination` directly (ADR-0002); steps hand off through a
   shared `ExecutionContext`, never call each other directly
-- New `packages/destinations/{contracts,factory,slack}`, mirroring the `packages/ai/*` pattern
+- New `packages/destinations/{contracts,slack}`, mirroring the `packages/ai/*` pattern
 - Application use case to execute that single workflow
-- Infrastructure adapters: webhook receiver, Claude via `ai-factory` (only `@flowmind/ai-claude`
-  gets its vendor SDK installed — OpenAI/Gemini adapters stay stubs), Slack via the new
-  `destinations/factory`
+- Infrastructure adapters: webhook receiver, Claude via an injected resolver function (only
+  `@flowmind/ai-claude` gets its vendor SDK installed — OpenAI/Gemini adapters stay stubs), Slack
+  the same way. `@flowmind/ai-factory` exists but stayed an unwired stub — as-implemented, the
+  composition root (`apps/api/src/composition-root.ts`) resolves providers/destinations directly
+  via `() => concreteInstance` closures rather than through a factory package; a
+  `destinations/factory` package was never created. Revisit once multiple providers/destinations
+  actually need runtime selection (v0.3+).
 - Just enough persistence (Prisma installed and wired here, not before) to record a workflow run
   and its steps, and to show a run history
 - Tests covering the execution path
