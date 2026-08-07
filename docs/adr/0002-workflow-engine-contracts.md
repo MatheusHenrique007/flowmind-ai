@@ -65,3 +65,17 @@ SlackNode`.
   injection without a factory)**: considered, but a factory keyed by name is what lets a future
   workflow definition (e.g. `{ destination: "discord" }`) resolve to a concrete adapter without
   the Worker or Engine branching on type.
+
+## Implementation note (added v0.2.2)
+
+Rules 1–3 above held exactly as decided. What changed is _how_ provider/destination selection is
+implemented: `packages/ai/factory` and a `packages/destinations/factory` package were planned but
+never wired — the rejected alternative above ("constructor injection without a factory") is what
+actually shipped. `AIExecutor`/`DestinationExecutor` take an injected resolver function
+(`(name) => AIProvider | undefined`), and the composition root
+(`apps/api/src/composition-root.ts`) passes `() => claudeProvider` / `() => slackDestination`
+directly — there is exactly one provider and one destination in this release, so a name-keyed
+factory added indirection with no present benefit. The dependency-inversion rules this ADR exists
+to protect (Engine depends only on contracts, never concrete adapters) are unaffected either way.
+Revisit the factory approach once a workflow definition actually needs to select a provider/
+destination by name at runtime (v0.3+, multiple providers/destinations).

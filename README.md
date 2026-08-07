@@ -1,6 +1,8 @@
 <div align="center">
 
-<!-- TODO: replace with a real logo (docs/assets/logo.png) -->
+<img src="assets/logo-placeholder.svg" alt="FlowMind AI logo placeholder" width="120" height="120" />
+
+<!-- TODO (v0.3+): replace assets/logo-placeholder.svg with a real logo -->
 
 # 🧠 FlowMind AI
 
@@ -10,23 +12,65 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](package.json)
 [![pnpm](https://img.shields.io/badge/pnpm-workspaces-F69220?logo=pnpm&logoColor=white)](pnpm-workspace.yaml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**Current Version**: v0.2.1 · **Status**: Execution Engine, Product Polish · **Next**: v0.3.0
+**Current Version**: v0.2.2 · **Status**: Execution Engine, Recruiter-Ready · **Next**: v0.3.0 — Visual Workflow Builder
 
 </div>
 
 ---
 
+## Why FlowMind?
+
+Most "AI workflow" portfolio projects stop at a wired-together demo. FlowMind AI is built the way
+a real product team would build it, in public, one Release at a time:
+
+- **Product decisions before code** — every Release has a PRD (`docs/prd/`) answering who uses
+  it, how it's demoed, and what's explicitly out of scope, written _before_ implementation starts.
+- **Clean Architecture enforced by tooling, not convention** — Domain and Application have zero
+  infrastructure imports, checked by a dedicated ESLint rule that's been proven to actually fire
+  (see [ADR-0001](docs/adr/0001-foundation-decisions.md), [ADR-0002](docs/adr/0002-workflow-engine-contracts.md)).
+- **Honesty over appearances** — when a plan didn't survive contact with implementation (see the
+  [v0.2.2 correction note](docs/adr/0002-workflow-engine-contracts.md#implementation-note-added-v022)),
+  the docs say so instead of quietly rewriting history.
+- **Real tests against real infrastructure** — the Prisma integration tests run against an actual
+  Postgres, in CI, not a mock.
+
+## Project Status
+
+|                                  |                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Version**                      | v0.2.2                                                                                        |
+| **Stage**                        | Execution engine proven end to end; no visual editor yet                                      |
+| **What works today**             | `Webhook → Claude → Slack`, one hardcoded workflow, full run history, dependency health check |
+| **What doesn't exist yet**       | Workflow authoring UI, multi-tenant auth, multiple triggers/providers/destinations            |
+| **CI**                           | ![CI](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml/badge.svg)   |
+| **Test coverage (this release)** | 60+ unit tests (Domain/Application/Engine) + 5 real Postgres integration tests                |
+
+## Quick Start
+
+Three commands, assuming Docker is running:
+
+```bash
+git clone https://github.com/MatheusHenrique007/flowmind-ai.git && cd flowmind-ai
+pnpm install && cp .env.example .env
+pnpm demo
+```
+
+That's it — `pnpm demo` brings up Postgres/Redis, seeds the demo workflow, boots the API, fires
+the webhook, and prints the result. See [Run the demo](#run-the-demo) below for what to expect
+with and without real `ANTHROPIC_API_KEY`/`SLACK_BOT_TOKEN` values.
+
 FlowMind AI is a B2B SaaS workflow automation platform, in the spirit of Zapier or n8n: users
 compose triggers, AI steps, and integrations into automated workflows. **v0.1.0** built the
 monorepo foundation; **v0.2.0** proved the execution engine end to end with one hardcoded
-workflow; **v0.2.1** (this release) turns that technical MVP into something you can clone,
+workflow; **v0.2.1**/**v0.2.2** turned that technical MVP into something anyone can clone,
 configure, and demo in under 10 minutes.
 
 No visual editor yet — see [Roadmap](#roadmap) for what's next.
 
-## Key features (v0.2.1)
+## Key features
 
 - **Webhook → AI → Slack**, wired end to end: a `POST` request triggers a BullMQ job, a Worker
   runs the Engine, Claude summarizes the input, Slack gets notified.
@@ -90,7 +134,8 @@ flowmind-ai/
 │   ├── infrastructure/          # @flowmind/infrastructure (Prisma, BullMQ, health check)
 │   ├── ai/
 │   │   ├── contracts/           # @flowmind/ai-contracts (AIProvider port)
-│   │   ├── factory/             # @flowmind/ai-factory
+│   │   ├── factory/              # @flowmind/ai-factory — stub, not wired; the composition
+│   │   │                         #   root uses an injected resolver function instead
 │   │   ├── claude/              # @flowmind/ai-claude — real (@anthropic-ai/sdk)
 │   │   ├── openai/               # @flowmind/ai-openai — stub, not wired yet
 │   │   └── gemini/               # @flowmind/ai-gemini — stub, not wired yet
@@ -101,9 +146,10 @@ flowmind-ai/
 │   ├── architecture/            # ARCHITECTURE.md, tech-stack.md
 │   ├── adr/                     # Architecture Decision Records
 │   ├── prd/                     # Product Requirements Docs per release
-│   └── demo/                    # demo-script.md
+│   └── demo/                    # demo-script.md, record-demo.md
 ├── scripts/
 │   └── demo.mjs                 # `pnpm demo`
+├── assets/                       # logo/screenshot/GIF placeholders (see assets/README.md)
 └── docker-compose.yml            # Postgres + Redis
 ```
 
@@ -165,20 +211,31 @@ narratable version (useful for recording a video), see
 
 ## Screenshots
 
-<!-- TODO: add real screenshots once the visual editor (v0.3+) exists -->
+<!-- TODO (v0.3+): replace both SVGs below with real screenshots -->
 
-_No UI yet — this release is API + Worker only. Screenshots land once the visual editor ships._
+<p>
+  <img src="assets/screenshot-health-placeholder.svg" alt="GET /health response placeholder" width="380" />
+  <img src="assets/screenshot-workflow-runs-placeholder.svg" alt="GET /workflow-runs response placeholder" width="380" />
+</p>
+
+No workflow-authoring UI yet — this release is API + Worker only. Real UI screenshots land once
+the visual editor (v0.3+) ships.
 
 ## Demo GIF
 
-<!-- TODO: record a ~2-minute terminal recording of `pnpm demo` and embed it here -->
+<!-- TODO: record per docs/demo/record-demo.md and replace this placeholder -->
+
+<img src="assets/demo-placeholder.svg" alt="Demo GIF placeholder" width="500" />
+
+See [docs/demo/record-demo.md](docs/demo/record-demo.md) for exactly how to record the real one.
 
 ## Roadmap
 
 - **v0.1.0** — Monorepo foundation, tooling, CI ✅
 - **v0.2.0** — Execution engine proven end to end (Webhook → Claude → Slack) ✅
-- **v0.2.1** — Product polish: README, demo command, health check, seed script (this release) ✅
-- **v0.3.0** — Additional triggers/providers/destinations, building on the same contracts
+- **v0.2.1** — Product polish: README, demo command, health check, seed script ✅
+- **v0.2.2** — GitHub showcase: fixed doc/code divergences, Quick Start, recording guide (this release) ✅
+- **v0.3.0** — Visual Workflow Builder (React Flow) — planning starts after this release
 - **Future** — Visual workflow editor, multi-tenant auth, billing, node marketplace
 
 Full detail: [ROADMAP.md](ROADMAP.md).
@@ -222,6 +279,19 @@ Full detail: [ROADMAP.md](ROADMAP.md).
 - [x] Lint/typecheck/test/build green — no changes to Domain/Application/Engine business logic;
       Infrastructure/Presentation touched only for the health check and dotenv loading (see PR
       description for the full list and the real bugs this release's manual testing caught)
+
+## Definition of Done — Release v0.2.2
+
+- [x] All doc/code divergences found and fixed, not silently — see the
+      [ADR-0002 implementation note](docs/adr/0002-workflow-engine-contracts.md#implementation-note-added-v022)
+      and the corresponding correction in the [v0.2.0 PRD](docs/prd/v0.2.0-execution-engine.md)
+- [x] README: badges, Why FlowMind?, Project Status, 3-command Quick Start, highlighted
+      architecture, GIF/screenshot placeholders (real SVGs in `assets/`, not broken links)
+- [x] [docs/demo/record-demo.md](docs/demo/record-demo.md) — how to record the real 90-second demo
+- [x] `assets/` created with logo/screenshot/GIF placeholders and its own README explaining what
+      to replace each with
+- [x] Zero product functionality changed — Domain/Application/Engine/Infrastructure untouched
+- [x] Lint/typecheck/test/build green — confirms the doc-only nature of this release
 
 ## Contributing
 

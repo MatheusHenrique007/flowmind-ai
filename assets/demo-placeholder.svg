@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#0f172a"/>
+  <rect x="1" y="1" width="798" height="448" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="8,6"/>
+  <circle cx="400" cy="190" r="36" fill="#312e81"/>
+  <polygon points="388,172 388,208 418,190" fill="#c7d2fe"/>
+  <text x="50%" y="66%" text-anchor="middle" font-family="monospace" font-size="22" fill="#94a3b8">DEMO GIF PLACEHOLDER</text>
+  <text x="50%" y="74%" text-anchor="middle" font-family="monospace" font-size="14" fill="#64748b">~90s recording — see docs/demo/record-demo.md</text>
+</svg>
