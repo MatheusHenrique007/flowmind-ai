@@ -119,7 +119,8 @@ This release is only considered complete once every item below is checked:
 
 - [x] Monorepo created
 - [x] GitHub configured (templates, CODEOWNERS, branch protection on `main`)
-- [ ] CI green (lint, typecheck, test, build, e2e) — verifying on PR #1
+- [x] CI green (lint, typecheck, test, build, e2e) — all 5 checks passing on
+      [PR #1](https://github.com/MatheusHenrique007/flowmind-ai/pull/1), merged into `main`
 - [ ] Docker Compose brings up PostgreSQL and Redis — **not verified**: Docker Desktop was
       installed and WSL2 enabled during this release, but the daemon needs a machine reboot to
       finish WSL2 kernel setup that hasn't happened yet. `docker-compose.yml` exists and is
