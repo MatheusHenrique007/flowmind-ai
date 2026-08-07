@@ -1,9 +1,17 @@
 # FlowMind AI
 
+**Current Version**: v0.1.0
+**Status**: Production Foundation
+**Next**: v0.2.0 — Minimal end-to-end execution engine
+
 FlowMind AI is an AI-powered workflow automation platform (B2B SaaS) in the spirit of Zapier or
 n8n: users compose triggers, AI steps, and integrations into automated workflows through a
 visual editor. This repository is the monorepo foundation — **Release v0.1.0** — laying down
 tooling, architecture, and CI before any product feature is built.
+
+As of v0.2.0, the foundation is frozen: no further infrastructure, tooling, or monorepo
+reorganization work unless it's a bug fix or a critical correction. All effort goes into product
+features that move FlowMind AI toward a usable MVP.
 
 ## Tech stack
 
