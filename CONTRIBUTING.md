@@ -1,10 +1,28 @@
 # Contributing to FlowMind AI
 
+## Foundation freeze
+
+As of v0.1.0, infrastructure, stack, monorepo layout, CI, and architecture are **frozen**.
+Changing any of them requires one of exactly three justifications:
+
+- a critical bug
+- a security vulnerability
+- a very large, clearly demonstrated technical gain
+
+"I'd rather use X" is never sufficient — see the stack-change proposal template in
+[docs/architecture/tech-stack.md](docs/architecture/tech-stack.md). No swapping Prisma, adding
+Kafka, migrating to Nest, or similar, without going through that process first.
+
 ## Product first
 
 Product drives architecture, never the reverse: Product → Product → Product → architecture only
 when the product genuinely needs it → Product → Product. Don't add layers, patterns, or
 abstractions ahead of a real product requirement.
+
+Starting v0.2.0, every new feature must answer one question before it's built: **"will this be
+used in FlowMind's official demo?"** If the honest answer is no, it doesn't go in yet — no
+complex settings, billing, marketplace, multi-tenant org/teams, or advanced RBAC until the core
+product itself is proven.
 
 ## Releases, not sprints
 

@@ -6,6 +6,11 @@ engineering to-do list. See `docs/adr/0001-foundation-decisions.md` (Decision 6)
 
 Rules that gate every release closing (see [CONTRIBUTING.md](CONTRIBUTING.md) for full detail):
 
+- **Foundation freeze**: infrastructure, stack, monorepo layout, CI, and architecture are frozen
+  as of v0.1.0 — changed only for a critical bug, a security vulnerability, or a very large
+  technical gain, never preference.
+- **MVP rule**: a feature ships only if the honest answer to "will this be used in FlowMind's
+  official demo?" is yes. No settings, billing, marketplace, teams, or advanced RBAC yet.
 - **Demo rule**: if the release's result can't be demoed in under two minutes, it was scoped too
   large.
 - **Recruiter rule**: before closing, ask "would a Tech Lead opening this repo today be
@@ -39,22 +44,31 @@ Definition of Done for this release lives in `README.md`.
 
 ## v0.2.0 — Minimal end-to-end execution engine (next)
 
-The foundation is frozen as of this release: no further infrastructure, tooling, or monorepo
-reorganization work unless it's a bug fix or a critical correction. 100% of effort goes into
-product features that move FlowMind AI toward a usable MVP.
+Full PRD: [docs/prd/v0.2.0-execution-engine.md](docs/prd/v0.2.0-execution-engine.md).
 
-Goal: prove the execution engine works end-to-end with one fixed, hardcoded workflow — no visual
-editor yet. Demoable in under two minutes: trigger the fixed workflow, watch it run, see the
-Slack message land.
+100% of effort goes into product features that move FlowMind AI toward a usable MVP — the
+foundation is frozen (see above).
 
-- Fixed workflow: **Email trigger → AI summarize → Slack notification**
+Goal: prove the execution engine works end-to-end with exactly **one** hardcoded use case — not
+30, not a general-purpose engine yet. No visual editor. Demoable in under two minutes: fire the
+webhook, watch the run happen, see the Slack message land.
+
+- Fixed workflow: **Webhook trigger → Claude (summarize/classify) → Slack notification**
 - Domain model for a minimal workflow/run/step
+- A Workflow Engine that depends only on the `AIProvider` and new `Destination` contracts —
+  never on `ClaudeProvider`/`SlackDestination` directly (ADR-0002); steps hand off through a
+  shared `ExecutionContext`, never call each other directly
+- New `packages/destinations/{contracts,factory,slack}`, mirroring the `packages/ai/*` pattern
 - Application use case to execute that single workflow
-- Infrastructure adapters: email trigger listener, one AI provider wired through `ai-factory`
-  (only that one provider's SDK gets installed), Slack notification sender
+- Infrastructure adapters: webhook receiver, Claude via `ai-factory` (only `@flowmind/ai-claude`
+  gets its vendor SDK installed — OpenAI/Gemini adapters stay stubs), Slack via the new
+  `destinations/factory`
 - Just enough persistence (Prisma installed and wired here, not before) to record a workflow run
-  and its steps
+  and its steps, and to show a run history
 - Tests covering the execution path
+
+Once this works end to end, the same shape repeats for Email, then GitHub, then Notion — never
+before this one is proven.
 
 ## Future (unscheduled, directional only)
 
