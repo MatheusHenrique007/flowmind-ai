@@ -1,13 +1,14 @@
 # FlowMind AI
 
-**Current Version**: v0.1.0
-**Status**: Production Foundation
-**Next**: v0.2.0 — Minimal end-to-end execution engine
+**Current Version**: v0.2.0 (in progress)
+**Status**: Execution Engine
+**Next**: v0.3.0 — additional triggers/providers/destinations
 
 FlowMind AI is an AI-powered workflow automation platform (B2B SaaS) in the spirit of Zapier or
 n8n: users compose triggers, AI steps, and integrations into automated workflows through a
-visual editor. This repository is the monorepo foundation — **Release v0.1.0** — laying down
-tooling, architecture, and CI before any product feature is built.
+visual editor. **v0.1.0** laid down the monorepo foundation, tooling, and CI. **v0.2.0** proves
+the core mechanic end to end with one hardcoded workflow — see
+[docs/prd/v0.2.0-execution-engine.md](docs/prd/v0.2.0-execution-engine.md).
 
 As of v0.2.0, the foundation is frozen: no further infrastructure, tooling, or monorepo
 reorganization work unless it's a bug fix or a critical correction. All effort goes into product
@@ -32,15 +33,15 @@ features that move FlowMind AI toward a usable MVP.
 - JWT (access + refresh tokens)
 - OpenAPI/Swagger
 
-Frozen as the official stack (see [ADR-0001](docs/adr/0001-foundation-decisions.md)); Prisma,
-BullMQ, and vendor AI SDKs are only installed in the release that actually wires them up — none
-of them are dependencies yet in this foundation release.
+Frozen as the official stack (see [ADR-0001](docs/adr/0001-foundation-decisions.md)). As of
+v0.2.0, Prisma and BullMQ are wired for real; OpenAI/Gemini adapters remain stubs until a later
+release actually needs them (per the same "install only what's wired" rule).
 
 **AI**
 
 - Multi-provider abstraction: OpenAI, Anthropic Claude, Google Gemini
-- Provider-agnostic `AIProvider` port with a factory for provider selection (contracts and
-  adapter stubs exist now; vendor SDKs land when a provider is first wired, in v0.2.0)
+- Provider-agnostic `AIProvider` port with a factory for provider selection. `ClaudeProvider` is
+  real (`@anthropic-ai/sdk`) as of v0.2.0; OpenAI/Gemini adapters stay stubs until wired.
 
 **Infrastructure**
 
@@ -129,11 +130,9 @@ This release is only considered complete once every item below is checked:
 - [x] GitHub configured (templates, CODEOWNERS, branch protection on `main`)
 - [x] CI green (lint, typecheck, test, build, e2e) — all 5 checks passing on
       [PR #1](https://github.com/MatheusHenrique007/flowmind-ai/pull/1), merged into `main`
-- [ ] Docker Compose brings up PostgreSQL and Redis — **not verified**: Docker Desktop was
-      installed and WSL2 enabled during this release, but the daemon needs a machine reboot to
-      finish WSL2 kernel setup that hasn't happened yet. `docker-compose.yml` exists and is
-      reviewed, but has not actually been run. Flagged here rather than checked off, per this
-      project's honesty rule — to be verified after the next reboot.
+- [x] Docker Compose brings up PostgreSQL and Redis — verified during v0.2.0 once Docker Desktop's
+      backend was fixed: `docker compose up -d` starts both containers, Prisma migrations and the
+      full webhook → Slack pipeline ran against them for real
 - [x] API starts correctly (`/health` responds) — verified locally: `{"status":"ok"}`
 - [x] Web starts correctly (landing page renders) — verified locally
 - [x] Lint green — `pnpm lint`, 14/14 packages
@@ -143,6 +142,23 @@ This release is only considered complete once every item below is checked:
 - [x] Husky hooks working — verified on the first real commit
 - [x] Commitlint working — verified on the first real commit
 - [x] First push to `main` completed
+
+## Definition of Done — Release v0.2.0
+
+- [x] Domain layer (Workflow/WorkflowRun/WorkflowStep/ExecutionContext) — 37 unit tests
+- [x] Application layer (ExecuteWorkflow, GetWorkflowRun, ListWorkflowRuns + ports) — 11 unit tests
+- [x] Engine (StepExecutorRegistry + 3 executors, sequential, Clock-timestamped) — 16 unit tests
+- [x] Infrastructure: Prisma repositories, ClaudeProvider, SlackDestination, BullMQ queue/worker,
+      Fastify routes, composition root
+- [x] Prisma integration tests run for real against Postgres (locally and in CI — see
+      `.github/workflows/ci.yml`'s `test` job)
+- [x] Smoke Test (per CONTRIBUTING.md): booted `apps/api` against real Postgres + Redis,
+      `POST /webhooks/webhook-to-slack-demo` → queued → Worker executed `ExecuteWorkflow` →
+      Trigger step succeeded → AI step called the real Anthropic API and failed on an
+      intentionally fake key → run correctly recorded `FAILED`, stopped before the Destination
+      step, visible via `GET /workflow-runs`. Proves the full wiring; a real `ANTHROPIC_API_KEY`
+      and `SLACK_BOT_TOKEN` are what's needed for the end-to-end Slack demo itself.
+- [x] Lint/typecheck/test/build green across all 22 packages/apps
 
 ## Contributing
 

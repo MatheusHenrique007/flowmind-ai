@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Steps are stored as JSON, not a relational table: this release has exactly
+// one hardcoded Workflow, seeded via prisma/seed.ts — a full Step table with
+// ordering/foreign keys is deferred until workflow authoring is a real
+// feature (see docs/adr/0001-foundation-decisions.md's overengineering rule).
+model Workflow {
+  id        String        @id
+  name      String
+  steps     Json
+  createdAt DateTime      @default(now())
+  runs      WorkflowRun[]
+
+  @@map("workflows")
+}
+
+model WorkflowRun {
+  id          String                     @id
+  workflowId  String
+  workflow    Workflow                   @relation(fields: [workflowId], references: [id])
+  status      String
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime                   @default(now())
+  stepResults WorkflowStepResultRecord[]
+
+  @@map("workflow_runs")
+}
+
+model WorkflowStepResultRecord {
+  id            String      @id @default(uuid())
+  workflowRunId String
+  workflowRun   WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  stepId        String
+  status        String
+  output        Json?
+  error         String?
+  startedAt     DateTime
+  finishedAt    DateTime
+
+  @@map("workflow_step_results")
+}

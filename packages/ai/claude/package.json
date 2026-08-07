@@ -13,6 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.3",
     "@flowmind/ai-contracts": "workspace:*"
   },
   "devDependencies": {
