@@ -60,6 +60,7 @@ describe('ExecuteWorkflow', () => {
       success: true,
       context: ExecutionContext.create({ text: 'hi' }),
       stepResults: [],
+      stepsExecuted: 3,
     });
 
     const run = await useCase.execute(workflow.id, { text: 'hi' });
@@ -79,6 +80,7 @@ describe('ExecuteWorkflow', () => {
       success: false,
       context: ExecutionContext.create({ text: 'hi' }),
       stepResults: [],
+      stepsExecuted: 3,
     });
 
     const run = await useCase.execute(workflow.id, { text: 'hi' });
@@ -104,6 +106,7 @@ describe('ExecuteWorkflow', () => {
       success: true,
       context: ExecutionContext.create({ text: 'hi' }),
       stepResults: [stepResult],
+      stepsExecuted: 1,
     });
 
     const run = await useCase.execute(workflow.id, { text: 'hi' });
@@ -119,6 +122,7 @@ describe('ExecuteWorkflow', () => {
       success: true,
       context: ExecutionContext.create({ text: 'hi' }),
       stepResults: [],
+      stepsExecuted: 3,
     });
 
     await useCase.execute(workflow.id, { text: 'hi' });
