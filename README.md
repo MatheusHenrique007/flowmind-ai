@@ -118,11 +118,13 @@ pnpm test:e2e
 This release is only considered complete once every item below is checked:
 
 - [x] Monorepo created
-- [ ] GitHub configured (templates, CODEOWNERS, branch protection)
-- [ ] CI green (lint, typecheck, test, build, e2e) — pending first push
-- [ ] Docker Compose brings up PostgreSQL and Redis — **not verified**: Docker is not installed
-      on this development machine; `docker-compose.yml` exists and is reviewed, but has not been
-      run. Flagged here rather than checked off, per this project's honesty rule.
+- [x] GitHub configured (templates, CODEOWNERS, branch protection on `main`)
+- [ ] CI green (lint, typecheck, test, build, e2e) — verifying on PR #1
+- [ ] Docker Compose brings up PostgreSQL and Redis — **not verified**: Docker Desktop was
+      installed and WSL2 enabled during this release, but the daemon needs a machine reboot to
+      finish WSL2 kernel setup that hasn't happened yet. `docker-compose.yml` exists and is
+      reviewed, but has not actually been run. Flagged here rather than checked off, per this
+      project's honesty rule — to be verified after the next reboot.
 - [x] API starts correctly (`/health` responds) — verified locally: `{"status":"ok"}`
 - [x] Web starts correctly (landing page renders) — verified locally
 - [x] Lint green — `pnpm lint`, 14/14 packages
@@ -131,7 +133,7 @@ This release is only considered complete once every item below is checked:
 - [x] Build green — `pnpm build`, 11/11 packages
 - [x] Husky hooks working — verified on the first real commit
 - [x] Commitlint working — verified on the first real commit
-- [ ] First push to `main` completed
+- [x] First push to `main` completed
 
 ## Contributing
 
