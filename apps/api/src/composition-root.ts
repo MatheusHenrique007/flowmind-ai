@@ -2,9 +2,15 @@ import { ClaudeProvider } from '@flowmind/ai-claude';
 import {
   CreateWorkflow,
   ExecuteWorkflow,
+  GetCurrentUser,
   GetWorkflowRun,
   ListWorkflowRuns,
+  LoginUser,
+  LogoutUser,
+  RefreshSession,
+  RegisterUser,
   UpdateWorkflow,
+  type TokenService,
   type WorkflowQueue,
 } from '@flowmind/application';
 import { SlackDestination } from '@flowmind/destinations-slack';
@@ -21,8 +27,12 @@ import {
   createPrismaClient,
   createRedisConnection,
   createWorkflowQueue,
+  JoseTokenService,
+  PrismaRefreshTokenRepository,
+  PrismaUserRepository,
   PrismaWorkflowRepository,
   PrismaWorkflowRunRepository,
+  PrismaWorkspaceRepository,
   startWorkflowWorker,
   SystemClock,
   type WorkflowWorker,
@@ -46,6 +56,12 @@ export interface CompositionRoot {
   updateWorkflow: UpdateWorkflow;
   getWorkflowRun: GetWorkflowRun;
   listWorkflowRuns: ListWorkflowRuns;
+  registerUser: RegisterUser;
+  loginUser: LoginUser;
+  refreshSession: RefreshSession;
+  logoutUser: LogoutUser;
+  getCurrentUser: GetCurrentUser;
+  tokenService: TokenService;
   worker: WorkflowWorker;
   checkHealth: () => Promise<HealthReport>;
   shutdown: () => Promise<void>;
@@ -64,6 +80,15 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
 
   const workflowRepository = new PrismaWorkflowRepository(prisma);
   const workflowRunRepository = new PrismaWorkflowRunRepository(prisma);
+  const userRepository = new PrismaUserRepository(prisma);
+  const workspaceRepository = new PrismaWorkspaceRepository(prisma);
+  const refreshTokenRepository = new PrismaRefreshTokenRepository(prisma);
+
+  const clock = new SystemClock();
+  const tokenService = new JoseTokenService({
+    secret: env.ACCESS_TOKEN_SECRET,
+    ttl: env.ACCESS_TOKEN_TTL,
+  });
 
   const claudeProvider = new ClaudeProvider({ apiKey: env.ANTHROPIC_API_KEY });
   const slackDestination = new SlackDestination({ botToken: env.SLACK_BOT_TOKEN });
@@ -73,7 +98,7 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
   registry.register(StepType.AI, new AIExecutor(() => claudeProvider));
   registry.register(StepType.DESTINATION, new DestinationExecutor(() => slackDestination));
 
-  const engine = new Engine(registry, new SystemClock());
+  const engine = new Engine(registry, clock);
   const executeWorkflow = new ExecuteWorkflow(workflowRepository, workflowRunRepository, engine);
 
   const workflowQueue = createWorkflowQueue(redisConnection);
@@ -85,6 +110,18 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
     updateWorkflow: new UpdateWorkflow(workflowRepository),
     getWorkflowRun: new GetWorkflowRun(workflowRunRepository),
     listWorkflowRuns: new ListWorkflowRuns(workflowRunRepository),
+    registerUser: new RegisterUser(
+      userRepository,
+      workspaceRepository,
+      refreshTokenRepository,
+      tokenService,
+      clock,
+    ),
+    loginUser: new LoginUser(userRepository, refreshTokenRepository, tokenService, clock),
+    refreshSession: new RefreshSession(refreshTokenRepository, userRepository, tokenService, clock),
+    logoutUser: new LogoutUser(refreshTokenRepository, clock),
+    getCurrentUser: new GetCurrentUser(userRepository),
+    tokenService,
     worker,
     checkHealth: async () => {
       const [dependencies, queue] = await Promise.all([
