@@ -1,4 +1,9 @@
-import { DestinationKind, InvalidWorkflowDefinitionError, Provider } from '@flowmind/domain';
+import {
+  DestinationKind,
+  InvalidWorkflowDefinitionError,
+  Provider,
+  WorkspaceId,
+} from '@flowmind/domain';
 import { describe, expect, it } from 'vitest';
 
 import { CreateWorkflow } from '../use-cases/create-workflow.js';
@@ -16,16 +21,18 @@ function validInput() {
   };
 }
 
+const workspaceId = WorkspaceId.generate();
+
 describe('CreateWorkflow', () => {
   it('creates and persists a valid workflow', async () => {
     const repository = new FakeWorkflowRepository();
     const useCase = new CreateWorkflow(repository);
 
-    const workflow = await useCase.execute(validInput());
+    const workflow = await useCase.execute(workspaceId, validInput());
 
     expect(workflow.name).toBe('Webhook to Slack');
     expect(workflow.steps).toHaveLength(3);
-    await expect(repository.findById(workflow.id)).resolves.toBe(workflow);
+    await expect(repository.findById(workflow.id, workspaceId)).resolves.toBe(workflow);
   });
 
   it('propagates the domain validation error for an invalid composition', async () => {
@@ -34,7 +41,9 @@ describe('CreateWorkflow', () => {
     const input = validInput();
     input.steps = [input.steps[1]!, input.steps[0]!, input.steps[2]!]; // AI first, not Trigger
 
-    await expect(useCase.execute(input)).rejects.toThrow(InvalidWorkflowDefinitionError);
+    await expect(useCase.execute(workspaceId, input)).rejects.toThrow(
+      InvalidWorkflowDefinitionError,
+    );
   });
 
   it('never calls save() when validation fails', async () => {
@@ -49,7 +58,7 @@ describe('CreateWorkflow', () => {
     const input = validInput();
     input.steps = [input.steps[0]!]; // missing AI and Destination
 
-    await expect(useCase.execute(input)).rejects.toThrow();
+    await expect(useCase.execute(workspaceId, input)).rejects.toThrow();
     expect(saveCalled).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ export * from './workspace-id.js';
 export * from './user-id.js';
 export * from './refresh-token-id.js';
 export * from './token-family-id.js';
+export * from './refresh-token-secret.js';
 export * from './email.js';
 export * from './password-hash.js';
 export * from './execution-context.js';

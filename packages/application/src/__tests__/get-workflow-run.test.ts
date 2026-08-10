@@ -5,6 +5,7 @@ import {
   Workflow,
   WorkflowRunId,
   WorkflowStep,
+  WorkspaceId,
 } from '@flowmind/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -16,6 +17,8 @@ import { FakeWorkflowEngine } from './fakes/fake-workflow-engine.js';
 import { FakeWorkflowRepository } from './fakes/fake-workflow-repository.js';
 import { FakeWorkflowRunRepository } from './fakes/fake-workflow-run-repository.js';
 
+const workspaceId = WorkspaceId.generate();
+
 function buildWorkflow(): Workflow {
   return Workflow.create({
     name: 'Webhook to Slack',
@@ -24,6 +27,7 @@ function buildWorkflow(): Workflow {
       WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
       WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
     ],
+    workspaceId,
   });
 }
 
@@ -37,7 +41,7 @@ describe('GetWorkflowRun', () => {
   });
 
   it('throws WorkflowRunNotFoundError when no run exists with that id', async () => {
-    await expect(getWorkflowRun.execute(WorkflowRunId.generate())).rejects.toThrow(
+    await expect(getWorkflowRun.execute(workspaceId, WorkflowRunId.generate())).rejects.toThrow(
       WorkflowRunNotFoundError,
     );
   });
@@ -55,8 +59,8 @@ describe('GetWorkflowRun', () => {
     });
     const executeWorkflow = new ExecuteWorkflow(workflowRepository, workflowRunRepository, engine);
 
-    const run = await executeWorkflow.execute(workflow.id, { text: 'hi' });
-    const view = await getWorkflowRun.execute(run.id);
+    const run = await executeWorkflow.execute(workspaceId, workflow.id, { text: 'hi' });
+    const view = await getWorkflowRun.execute(workspaceId, run.id);
 
     expect(view.id).toBe(run.id.value);
     expect(view.status).toBe(run.status);

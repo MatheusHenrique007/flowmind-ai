@@ -1,4 +1,4 @@
-import type { Workflow, WorkflowId } from '@flowmind/domain';
+import type { Workflow, WorkflowId, WorkspaceId } from '@flowmind/domain';
 
 import type { WorkflowRepository } from '../../ports/workflow-repository.js';
 
@@ -9,8 +9,17 @@ export class FakeWorkflowRepository implements WorkflowRepository {
     this.workflows.set(workflow.id.value, workflow);
   }
 
-  async findById(id: WorkflowId): Promise<Workflow | null> {
-    return this.workflows.get(id.value) ?? null;
+  /**
+   * Mirrors the real repository's isolation rule exactly: a workflow owned by
+   * another workspace is reported as missing, not as forbidden — a fake that
+   * ignored workspaceId would make the isolation tests pass vacuously.
+   */
+  async findById(id: WorkflowId, workspaceId: WorkspaceId): Promise<Workflow | null> {
+    const workflow = this.workflows.get(id.value);
+    if (!workflow || !workflow.workspaceId.equals(workspaceId)) {
+      return null;
+    }
+    return workflow;
   }
 
   async save(workflow: Workflow): Promise<void> {

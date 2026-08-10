@@ -4,3 +4,7 @@ export * from './workflow-run-view.js';
 export * from './workflow-engine.js';
 export * from './workflow-queue.js';
 export * from './clock.js';
+export * from './user-repository.js';
+export * from './workspace-repository.js';
+export * from './refresh-token-repository.js';
+export * from './token-service.js';

@@ -8,6 +8,7 @@ import {
   WorkflowStep,
   WorkflowStepId,
   WorkflowStepResult,
+  WorkspaceId,
 } from '@flowmind/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -18,6 +19,8 @@ import { FakeWorkflowEngine } from './fakes/fake-workflow-engine.js';
 import { FakeWorkflowRepository } from './fakes/fake-workflow-repository.js';
 import { FakeWorkflowRunRepository } from './fakes/fake-workflow-run-repository.js';
 
+const workspaceId = WorkspaceId.generate();
+
 function buildWorkflow(): Workflow {
   return Workflow.create({
     name: 'Webhook to Slack',
@@ -26,6 +29,7 @@ function buildWorkflow(): Workflow {
       WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
       WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
     ],
+    workspaceId,
   });
 }
 
@@ -43,13 +47,15 @@ describe('ExecuteWorkflow', () => {
   });
 
   it('throws WorkflowNotFoundError when the workflow does not exist', async () => {
-    await expect(useCase.execute(buildWorkflow().id, { text: 'hi' })).rejects.toThrow(
+    await expect(useCase.execute(workspaceId, buildWorkflow().id, { text: 'hi' })).rejects.toThrow(
       WorkflowNotFoundError,
     );
   });
 
   it('never calls the engine when the workflow is not found', async () => {
-    await expect(useCase.execute(buildWorkflow().id, { text: 'hi' })).rejects.toThrow();
+    await expect(
+      useCase.execute(workspaceId, buildWorkflow().id, { text: 'hi' }),
+    ).rejects.toThrow();
     expect(engine.lastCall).toBeUndefined();
   });
 
@@ -63,7 +69,7 @@ describe('ExecuteWorkflow', () => {
       stepsExecuted: 3,
     });
 
-    const run = await useCase.execute(workflow.id, { text: 'hi' });
+    const run = await useCase.execute(workspaceId, workflow.id, { text: 'hi' });
 
     expect(workflowRunRepository.savedStatusesInOrder).toEqual([
       RunStatus.PENDING,
@@ -83,7 +89,7 @@ describe('ExecuteWorkflow', () => {
       stepsExecuted: 3,
     });
 
-    const run = await useCase.execute(workflow.id, { text: 'hi' });
+    const run = await useCase.execute(workspaceId, workflow.id, { text: 'hi' });
 
     expect(run.status).toBe(RunStatus.FAILED);
     expect(workflowRunRepository.savedStatusesInOrder).toEqual([
@@ -109,7 +115,7 @@ describe('ExecuteWorkflow', () => {
       stepsExecuted: 1,
     });
 
-    const run = await useCase.execute(workflow.id, { text: 'hi' });
+    const run = await useCase.execute(workspaceId, workflow.id, { text: 'hi' });
 
     expect(run.stepResults).toHaveLength(1);
     expect(run.stepResults[0]?.status).toBe(StepResultStatus.SUCCEEDED);
@@ -125,7 +131,7 @@ describe('ExecuteWorkflow', () => {
       stepsExecuted: 3,
     });
 
-    await useCase.execute(workflow.id, { text: 'hi' });
+    await useCase.execute(workspaceId, workflow.id, { text: 'hi' });
 
     expect(engine.lastCall?.workflow).toBe(workflow);
     expect(engine.lastCall?.context.get('input')).toEqual({ text: 'hi' });
@@ -136,7 +142,7 @@ describe('ExecuteWorkflow', () => {
     workflowRepository.seed(workflow);
     engine.willThrow(new Error('Claude API unreachable'));
 
-    await expect(useCase.execute(workflow.id, { text: 'hi' })).rejects.toThrow(
+    await expect(useCase.execute(workspaceId, workflow.id, { text: 'hi' })).rejects.toThrow(
       'Claude API unreachable',
     );
   });

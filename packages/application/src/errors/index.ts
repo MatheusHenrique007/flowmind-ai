@@ -1,3 +1,7 @@
 export * from './application-error.js';
 export * from './workflow-not-found-error.js';
 export * from './workflow-run-not-found-error.js';
+export * from './invalid-credentials-error.js';
+export * from './email-already-registered-error.js';
+export * from './invalid-refresh-token-error.js';
+export * from './user-not-found-error.js';
