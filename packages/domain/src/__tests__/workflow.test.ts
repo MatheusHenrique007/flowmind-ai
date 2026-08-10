@@ -5,6 +5,9 @@ import { Workflow } from '../entities/workflow.js';
 import { DestinationKind } from '../enums/destination-kind.js';
 import { Provider } from '../enums/provider.js';
 import { InvalidWorkflowDefinitionError } from '../errors/invalid-workflow-definition-error.js';
+import { WorkspaceId } from '../value-objects/workspace-id.js';
+
+const workspaceId = WorkspaceId.generate();
 
 function validSteps() {
   return [
@@ -16,20 +19,36 @@ function validSteps() {
 
 describe('Workflow', () => {
   it('can be created with a name and a valid Trigger -> AI -> Destination sequence', () => {
-    const workflow = Workflow.create({ name: 'Webhook to Slack', steps: validSteps() });
+    const workflow = Workflow.create({
+      name: 'Webhook to Slack',
+      steps: validSteps(),
+      workspaceId,
+    });
 
     expect(workflow.name).toBe('Webhook to Slack');
     expect(workflow.steps).toHaveLength(3);
   });
 
+  it('carries the owning workspaceId it was created with', () => {
+    const otherWorkspaceId = WorkspaceId.generate();
+    const workflow = Workflow.create({
+      name: 'Owned',
+      steps: validSteps(),
+      workspaceId: otherWorkspaceId,
+    });
+
+    expect(workflow.workspaceId.equals(otherWorkspaceId)).toBe(true);
+    expect(workflow.workspaceId.equals(workspaceId)).toBe(false);
+  });
+
   it('cannot exist with zero steps', () => {
-    expect(() => Workflow.create({ name: 'Empty', steps: [] })).toThrow(
+    expect(() => Workflow.create({ name: 'Empty', steps: [], workspaceId })).toThrow(
       InvalidWorkflowDefinitionError,
     );
   });
 
   it('rejects an empty or blank name', () => {
-    expect(() => Workflow.create({ name: '   ', steps: validSteps() })).toThrow(
+    expect(() => Workflow.create({ name: '   ', steps: validSteps(), workspaceId })).toThrow(
       InvalidWorkflowDefinitionError,
     );
   });
@@ -41,7 +60,7 @@ describe('Workflow', () => {
       WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
     ];
 
-    expect(() => Workflow.create({ name: 'Bad order', steps })).toThrow(
+    expect(() => Workflow.create({ name: 'Bad order', steps, workspaceId })).toThrow(
       InvalidWorkflowDefinitionError,
     );
   });
@@ -52,7 +71,7 @@ describe('Workflow', () => {
       WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
     ];
 
-    expect(() => Workflow.create({ name: 'No AI step', steps })).toThrow(
+    expect(() => Workflow.create({ name: 'No AI step', steps, workspaceId })).toThrow(
       InvalidWorkflowDefinitionError,
     );
   });
@@ -63,7 +82,7 @@ describe('Workflow', () => {
       WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
     ];
 
-    expect(() => Workflow.create({ name: 'No destination step', steps })).toThrow(
+    expect(() => Workflow.create({ name: 'No destination step', steps, workspaceId })).toThrow(
       InvalidWorkflowDefinitionError,
     );
   });
@@ -76,6 +95,6 @@ describe('Workflow', () => {
       WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
     ];
 
-    expect(() => Workflow.create({ name: 'Multi-AI', steps })).not.toThrow();
+    expect(() => Workflow.create({ name: 'Multi-AI', steps, workspaceId })).not.toThrow();
   });
 });
