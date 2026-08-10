@@ -31,7 +31,7 @@ describe('JoseTokenService', () => {
 
   it('rejects a tampered token', async () => {
     const token = await service.signAccessToken({ userId: 'user-1', workspaceId: 'workspace-1' });
-    const [header, payload, signature] = token.split('.');
+    const [header, , signature] = token.split('.');
     const forged = [
       header,
       Buffer.from('{"sub":"attacker","workspaceId":"workspace-2"}').toString('base64url'),

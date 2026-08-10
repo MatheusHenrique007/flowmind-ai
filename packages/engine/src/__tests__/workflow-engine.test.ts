@@ -6,6 +6,7 @@ import {
   StepType,
   Workflow,
   WorkflowStep,
+  WorkspaceId,
 } from '@flowmind/domain';
 import { describe, expect, it } from 'vitest';
 
@@ -27,6 +28,9 @@ function buildWorkflow(): Workflow {
       WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
       WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
     ],
+    // The Engine is workspace-agnostic — it never reads workspaceId. This is
+    // only here because Workflow.create() requires an owning workspace now.
+    workspaceId: WorkspaceId.generate(),
   });
 }
 

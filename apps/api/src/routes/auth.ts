@@ -14,8 +14,8 @@ import { InvalidEmailError, WeakPasswordError } from '@flowmind/domain';
 import type { FastifyInstance, FastifyReply, preHandlerAsyncHookHandler } from 'fastify';
 import { ZodError, z } from 'zod';
 
-import { authOf } from '../auth/require-auth.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../auth/refresh-cookie.js';
+import { authOf } from '../auth/require-auth.js';
 
 const credentialsSchema = z.object({
   email: z.string().min(1),

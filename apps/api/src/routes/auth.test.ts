@@ -37,11 +37,10 @@ import { JoseTokenService } from '@flowmind/infrastructure';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildServer } from '../server.js';
-
 import { REFRESH_COOKIE_NAME } from '../auth/refresh-cookie.js';
 import type { CompositionRoot } from '../composition-root.js';
 import { loadEnv } from '../env.js';
+import { buildServer } from '../server.js';
 
 /**
  * In-memory doubles, hand written in the project's existing fake style — this
