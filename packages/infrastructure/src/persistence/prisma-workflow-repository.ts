@@ -7,6 +7,7 @@ import {
   WorkflowId,
   WorkflowStep,
   WorkflowStepId,
+  WorkspaceId,
 } from '@flowmind/domain';
 import { Prisma, type PrismaClient } from '@prisma/client';
 
@@ -23,8 +24,15 @@ interface StoredStep {
 export class PrismaWorkflowRepository implements WorkflowRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: WorkflowId): Promise<Workflow | null> {
-    const row = await this.prisma.workflow.findUnique({ where: { id: id.value } });
+  /**
+   * The workspace is part of the WHERE clause, not a check applied to the
+   * loaded row: a workflow belonging to another workspace is simply not
+   * selected, so it is indistinguishable from a nonexistent id (ADR-0004).
+   */
+  async findById(id: WorkflowId, workspaceId: WorkspaceId): Promise<Workflow | null> {
+    const row = await this.prisma.workflow.findFirst({
+      where: { id: id.value, workspaceId: workspaceId.value },
+    });
     if (!row) {
       return null;
     }
@@ -32,7 +40,12 @@ export class PrismaWorkflowRepository implements WorkflowRepository {
     const storedSteps = row.steps as unknown as StoredStep[];
     const steps = storedSteps.map((stored) => this.toDomainStep(stored));
 
-    return Workflow.create({ id: WorkflowId.create(row.id), name: row.name, steps });
+    return Workflow.create({
+      id: WorkflowId.create(row.id),
+      name: row.name,
+      steps,
+      workspaceId: WorkspaceId.create(row.workspaceId),
+    });
   }
 
   async save(workflow: Workflow): Promise<void> {
@@ -40,9 +53,16 @@ export class PrismaWorkflowRepository implements WorkflowRepository {
       this.toStoredStep(step),
     ) as unknown as Prisma.InputJsonValue;
 
+    // workspaceId is written on create only, never on update: a workflow can
+    // never be moved between tenants by a save.
     await this.prisma.workflow.upsert({
       where: { id: workflow.id.value },
-      create: { id: workflow.id.value, name: workflow.name, steps },
+      create: {
+        id: workflow.id.value,
+        name: workflow.name,
+        steps,
+        workspaceId: workflow.workspaceId.value,
+      },
       update: { name: workflow.name, steps },
     });
   }

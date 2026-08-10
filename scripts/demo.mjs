@@ -72,9 +72,20 @@ async function main() {
     );
   }
 
-  step('Syncing the Prisma schema (prisma db push)');
-  if (!runSync('pnpm', ['--filter', '@flowmind/infrastructure', 'exec', 'prisma', 'db', 'push'])) {
-    return fail('Could not sync the Prisma schema — is DATABASE_URL reachable?');
+  // `prisma migrate deploy`, not `db push`: the project has real rows now, and
+  // only a migration can express a backfill safely (docs/adr/0004-...).
+  step('Applying Prisma migrations (prisma migrate deploy)');
+  if (
+    !runSync('pnpm', [
+      '--filter',
+      '@flowmind/infrastructure',
+      'exec',
+      'prisma',
+      'migrate',
+      'deploy',
+    ])
+  ) {
+    return fail('Could not apply the Prisma migrations — is DATABASE_URL reachable?');
   }
 
   step('Seeding the demo workflow (pnpm seed)');

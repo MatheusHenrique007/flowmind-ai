@@ -1,5 +1,11 @@
 import type { WorkflowRunRepository, WorkflowRunView } from '@flowmind/application';
-import type { RunStatus, StepResultStatus, WorkflowRun, WorkflowRunId } from '@flowmind/domain';
+import type {
+  RunStatus,
+  StepResultStatus,
+  WorkflowRun,
+  WorkflowRunId,
+  WorkspaceId,
+} from '@flowmind/domain';
 import {
   Prisma,
   type PrismaClient,
@@ -25,6 +31,9 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository {
       create: {
         id: run.id.value,
         workflowId: run.workflowId.value,
+        // Denormalized from the run's workflow and written on create only —
+        // never updated afterwards (ADR-0004).
+        workspaceId: run.workspaceId.value,
         status: run.status,
         startedAt: run.startedAt,
         finishedAt: run.finishedAt,
@@ -58,16 +67,23 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository {
     }
   }
 
-  async findViewById(id: WorkflowRunId): Promise<WorkflowRunView | null> {
-    const row = await this.prisma.workflowRun.findUnique({
-      where: { id: id.value },
+  /**
+   * Filters on the run's own denormalized workspaceId rather than joining
+   * through workflows — one less place a missed join condition could leak
+   * another tenant's run (ADR-0004). Another workspace's run reads as null,
+   * the same as a nonexistent id.
+   */
+  async findViewById(id: WorkflowRunId, workspaceId: WorkspaceId): Promise<WorkflowRunView | null> {
+    const row = await this.prisma.workflowRun.findFirst({
+      where: { id: id.value, workspaceId: workspaceId.value },
       include: { stepResults: true },
     });
     return row ? this.toView(row) : null;
   }
 
-  async listViews(): Promise<WorkflowRunView[]> {
+  async listViews(workspaceId: WorkspaceId): Promise<WorkflowRunView[]> {
     const rows = await this.prisma.workflowRun.findMany({
+      where: { workspaceId: workspaceId.value },
       include: { stepResults: true },
       orderBy: { createdAt: 'desc' },
     });

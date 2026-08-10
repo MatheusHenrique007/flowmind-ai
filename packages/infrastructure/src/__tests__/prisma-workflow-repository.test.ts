@@ -7,11 +7,14 @@ import {
   Workflow,
   WorkflowId,
   WorkflowStep,
+  WorkspaceId,
 } from '@flowmind/domain';
 import { PrismaClient } from '@prisma/client';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PrismaWorkflowRepository } from '../persistence/prisma-workflow-repository.js';
+
+import { createTestWorkspace, deleteTestWorkspace } from './helpers/test-workspace.js';
 
 /**
  * Real integration test against Postgres — not mocked. Skips gracefully
@@ -25,16 +28,27 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
   const prisma = new PrismaClient();
   const repository = new PrismaWorkflowRepository(prisma);
   const createdIds: string[] = [];
+  // Each run gets its own throwaway Workspace — never the pre-existing legacy
+  // one, whose rows must survive untouched.
+  const workspaceId = WorkspaceId.generate();
+  const otherWorkspaceId = WorkspaceId.generate();
+
+  beforeAll(async () => {
+    await createTestWorkspace(prisma, workspaceId);
+    await createTestWorkspace(prisma, otherWorkspaceId);
+  });
 
   afterAll(async () => {
     if (createdIds.length > 0) {
       await prisma.workflow.deleteMany({ where: { id: { in: createdIds } } });
     }
+    await deleteTestWorkspace(prisma, workspaceId);
+    await deleteTestWorkspace(prisma, otherWorkspaceId);
     await prisma.$disconnect();
   });
 
   it('returns null for an id that does not exist', async () => {
-    const result = await repository.findById(WorkflowId.generate());
+    const result = await repository.findById(WorkflowId.generate(), workspaceId);
     expect(result).toBeNull();
   });
 
@@ -45,6 +59,7 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
       data: {
         id,
         name: 'Webhook to Slack (integration test)',
+        workspaceId: workspaceId.value,
         steps: [
           { id: 'trigger-1', type: 'TRIGGER', config: { type: 'TRIGGER', kind: 'webhook' } },
           {
@@ -61,7 +76,7 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
       },
     });
 
-    const workflow = await repository.findById(WorkflowId.create(id));
+    const workflow = await repository.findById(WorkflowId.create(id), workspaceId);
 
     expect(workflow).not.toBeNull();
     expect(workflow?.name).toBe('Webhook to Slack (integration test)');
@@ -80,11 +95,12 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
         WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
         WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
       ],
+      workspaceId,
     });
     createdIds.push(workflow.id.value);
 
     await repository.save(workflow);
-    const reloaded = await repository.findById(workflow.id);
+    const reloaded = await repository.findById(workflow.id, workspaceId);
 
     expect(reloaded?.name).toBe('Created via save()');
     expect(reloaded?.steps.map((step) => step.type)).toEqual([
@@ -102,6 +118,7 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
         WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
         WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
       ],
+      workspaceId,
     });
     createdIds.push(workflow.id.value);
     await repository.save(workflow);
@@ -114,10 +131,11 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
         WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Classify urgency.' }),
         WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
       ],
+      workspaceId,
     });
     await repository.save(updated);
 
-    const reloaded = await repository.findById(workflow.id);
+    const reloaded = await repository.findById(workflow.id, workspaceId);
     expect(reloaded?.name).toBe('Updated name');
     expect(reloaded?.steps[1]?.config).toMatchObject({ instruction: 'Classify urgency.' });
   });
