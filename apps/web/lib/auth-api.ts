@@ -51,10 +51,20 @@ export async function login(input: { email: string; password: string }): Promise
  * load "not logged in" is the expected answer, not an error to surface.
  */
 export async function refresh(): Promise<SessionDto | null> {
-  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // The API being unreachable (offline, not yet started, network error) is
+    // the same outcome as an explicit "no session": there is nothing to
+    // restore. Left uncaught, this would reject the promise AuthProvider
+    // awaits on mount and leave `status` stuck at 'loading' forever instead
+    // of falling through to the anonymous/login state.
+    return null;
+  }
   if (!response.ok) {
     return null;
   }
