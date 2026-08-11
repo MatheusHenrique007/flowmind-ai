@@ -46,6 +46,18 @@ importers:
       '@flowmind/ai-claude':
         specifier: workspace:*
         version: link:../../packages/ai/claude
+      '@flowmind/ai-contracts':
+        specifier: workspace:*
+        version: link:../../packages/ai/contracts
+      '@flowmind/ai-gemini':
+        specifier: workspace:*
+        version: link:../../packages/ai/gemini
+      '@flowmind/ai-mock':
+        specifier: workspace:*
+        version: link:../../packages/ai/mock
+      '@flowmind/ai-openai':
+        specifier: workspace:*
+        version: link:../../packages/ai/openai
       '@flowmind/application':
         specifier: workspace:*
         version: link:../../packages/application
@@ -221,6 +233,31 @@ importers:
       '@flowmind/ai-contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@google/generative-ai':
+        specifier: ^0.21.0
+        version: 0.21.0
+    devDependencies:
+      '@flowmind/eslint-config':
+        specifier: workspace:*
+        version: link:../../eslint-config
+      '@flowmind/tsconfig':
+        specifier: workspace:*
+        version: link:../../tsconfig
+      eslint:
+        specifier: ^9.12.0
+        version: 9.39.5(jiti@2.6.1)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@20.19.43)
+
+  packages/ai/mock:
+    dependencies:
+      '@flowmind/ai-contracts':
+        specifier: workspace:*
+        version: link:../contracts
     devDependencies:
       '@flowmind/eslint-config':
         specifier: workspace:*
@@ -243,6 +280,9 @@ importers:
       '@flowmind/ai-contracts':
         specifier: workspace:*
         version: link:../contracts
+      openai:
+        specifier: ^4.68.0
+        version: 4.104.0(zod@3.25.76)
     devDependencies:
       '@flowmind/eslint-config':
         specifier: workspace:*
@@ -1169,6 +1209,13 @@ packages:
       {
         integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==,
       }
+
+  '@google/generative-ai@0.21.0':
+    resolution:
+      {
+        integrity: sha512-7XhUbtnlkSEZK15kN3t+tzIMxsbKm/dSkKBFalj+20NvPKe1kBY7mR2P7vuijEn+f06z5+A8bVGKO0v39cr6Wg==,
+      }
+    engines: { node: '>=18.0.0' }
 
   '@humanfs/core@0.19.2':
     resolution:
@@ -4622,6 +4669,21 @@ packages:
       }
     engines: { node: '>=18' }
 
+  openai@4.104.0:
+    resolution:
+      {
+        integrity: sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA==,
+      }
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   optionator@0.9.4:
     resolution:
       {
@@ -6362,6 +6424,8 @@ snapshots:
     dependencies:
       '@fastify/forwarded': 3.0.2
       ipaddr.js: 2.5.0
+
+  '@google/generative-ai@0.21.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -8517,6 +8581,20 @@ snapshots:
   onetime@7.0.0:
     dependencies:
       mimic-function: 5.0.1
+
+  openai@4.104.0(zod@3.25.76):
+    dependencies:
+      '@types/node': 18.19.130
+      '@types/node-fetch': 2.6.13
+      abort-controller: 3.0.0
+      agentkeepalive: 4.6.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0
+    optionalDependencies:
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - encoding
 
   optionator@0.9.4:
     dependencies:

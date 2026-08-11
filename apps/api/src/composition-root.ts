@@ -1,4 +1,8 @@
+import type { AIProvider } from '@flowmind/ai-contracts';
 import { ClaudeProvider } from '@flowmind/ai-claude';
+import { GeminiProvider } from '@flowmind/ai-gemini';
+import { MockAIProvider } from '@flowmind/ai-mock';
+import { OpenAIProvider } from '@flowmind/ai-openai';
 import {
   CreateWorkflow,
   ExecuteWorkflow,
@@ -14,9 +18,10 @@ import {
   type WorkflowQueue,
 } from '@flowmind/application';
 import { SlackDestination } from '@flowmind/destinations-slack';
-import { StepType } from '@flowmind/domain';
+import { Provider, StepType } from '@flowmind/domain';
 import {
   AIExecutor,
+  type AIProviderResolver,
   DestinationExecutor,
   Engine,
   StepExecutorRegistry,
@@ -90,12 +95,28 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
     ttl: env.ACCESS_TOKEN_TTL,
   });
 
-  const claudeProvider = new ClaudeProvider({ apiKey: env.ANTHROPIC_API_KEY });
+  // Each provider is decided once, here, at process boot: a real adapter
+  // when its API key is present, otherwise MockAIProvider. This is a static
+  // substitution, not a runtime fallback — see
+  // docs/adr/0005-provider-selection-strategy.md.
+  const providersByType: Record<Provider, AIProvider> = {
+    [Provider.CLAUDE]: env.ANTHROPIC_API_KEY
+      ? new ClaudeProvider({ apiKey: env.ANTHROPIC_API_KEY })
+      : new MockAIProvider(),
+    [Provider.OPENAI]: env.OPENAI_API_KEY
+      ? new OpenAIProvider({ apiKey: env.OPENAI_API_KEY })
+      : new MockAIProvider(),
+    [Provider.GEMINI]: env.GEMINI_API_KEY
+      ? new GeminiProvider({ apiKey: env.GEMINI_API_KEY })
+      : new MockAIProvider(),
+  };
+  const resolveAIProvider: AIProviderResolver = (provider) => providersByType[provider];
+
   const slackDestination = new SlackDestination({ botToken: env.SLACK_BOT_TOKEN });
 
   const registry = new StepExecutorRegistry();
   registry.register(StepType.TRIGGER, new TriggerExecutor());
-  registry.register(StepType.AI, new AIExecutor(() => claudeProvider));
+  registry.register(StepType.AI, new AIExecutor(resolveAIProvider));
   registry.register(StepType.DESTINATION, new DestinationExecutor(() => slackDestination));
 
   const engine = new Engine(registry, clock);

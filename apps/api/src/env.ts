@@ -5,9 +5,12 @@ import { z } from 'zod';
  * Extend this schema as new environment variables are introduced.
  *
  * DATABASE_URL/REDIS_URL are required — the app cannot boot without them.
- * ANTHROPIC_API_KEY/SLACK_BOT_TOKEN are optional: the server boots and
- * GET /health reports them as "not_configured" rather than crashing, so a
- * fresh clone is runnable in minutes even before real credentials exist.
+ * ANTHROPIC_API_KEY/OPENAI_API_KEY/GEMINI_API_KEY/SLACK_BOT_TOKEN are all
+ * optional: the server boots and GET /health reports them as
+ * "not_configured" rather than crashing, so a fresh clone is runnable in
+ * minutes even before real credentials exist. When an AI provider's key is
+ * absent, the composition root substitutes MockAIProvider for that provider
+ * (see docs/adr/0005-provider-selection-strategy.md) instead of failing.
  *
  * ACCESS_TOKEN_SECRET has a development default so a fresh clone still boots,
  * but production is rejected below if it is left at that value — an
@@ -22,6 +25,8 @@ const envSchema = z
     DATABASE_URL: z.string().min(1),
     REDIS_URL: z.string().min(1),
     ANTHROPIC_API_KEY: z.string().default(''),
+    OPENAI_API_KEY: z.string().default(''),
+    GEMINI_API_KEY: z.string().default(''),
     SLACK_BOT_TOKEN: z.string().default(''),
     /** HS256 signing key for the 15-minute access token (ADR-0003). */
     ACCESS_TOKEN_SECRET: z.string().min(32).default(DEV_ACCESS_TOKEN_SECRET),

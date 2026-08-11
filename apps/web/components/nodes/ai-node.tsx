@@ -25,6 +25,8 @@ export function AINode({ id, data }: NodeProps<AINodeData>) {
           className="mt-1 w-full rounded border border-indigo-300 bg-white px-2 py-1"
         >
           <option value="CLAUDE">Claude</option>
+          <option value="OPENAI">OpenAI</option>
+          <option value="GEMINI">Gemini</option>
         </select>
       </label>
       <label className="mt-2 block text-xs text-indigo-700">

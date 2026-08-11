@@ -1,5 +1,5 @@
 {
-  "name": "@flowmind/ai-openai",
+  "name": "@flowmind/ai-mock",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -13,8 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@flowmind/ai-contracts": "workspace:*",
-    "openai": "^4.68.0"
+    "@flowmind/ai-contracts": "workspace:*"
   },
   "devDependencies": {
     "@flowmind/eslint-config": "workspace:*",
