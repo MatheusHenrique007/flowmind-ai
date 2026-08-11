@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
+import { PasswordHash } from '@flowmind/domain';
 import { PrismaClient } from '@prisma/client';
 import { config as loadDotEnv } from 'dotenv';
 
@@ -9,25 +11,49 @@ loadDotEnv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
 
 const prisma = new PrismaClient();
 
-const DEMO_WORKFLOW_ID = 'webhook-to-slack-demo';
+// Not 'webhook-to-slack-demo': that id is pre-v0.4.0 legacy data, already
+// preserved under legacy-workspace by the auth migration's backfill, and
+// must never be reassigned or reused (see docs/adr/0004's amendment). The
+// demo workflow gets its own, distinct id so it can freely belong to
+// demo-workspace without touching that historical row.
+const DEMO_WORKFLOW_ID = 'demo-webhook-to-slack';
 // Workflows are workspace-owned since v0.4.0, so the seed needs a Workspace to
 // hang the demo workflow off. Deliberately its own id, not the migration's
 // legacy workspace: that one is historical data this script must not touch.
 const DEMO_WORKSPACE_ID = 'demo-workspace';
+// Every route is now authenticated (v0.4.0), so `pnpm demo` needs a real,
+// loginable account owning this workspace — not just a placeholder
+// `ownerUserId` with no matching `users` row. Fixed, documented credentials
+// (dev-only data, real Postgres already has zero real users seeded here).
+export const DEMO_USER_EMAIL = 'demo@flowmind.local';
+export const DEMO_USER_PASSWORD = 'flowmind-demo-password';
 
 async function main(): Promise<void> {
-  // ownerUserId is a placeholder — the demo workspace has no registered
-  // owner, and Workspace.ownerUserId is intentionally not a foreign key
-  // (see schema.prisma). Register an account to get a real, owned workspace.
+  const existingUser = await prisma.user.findUnique({ where: { email: DEMO_USER_EMAIL } });
+  const demoUserId = existingUser?.id ?? randomUUID();
+
+  // Workspace first: users.workspaceId is a real FK, so the workspace row
+  // must exist before the user can reference it.
   await prisma.workspace.upsert({
     where: { id: DEMO_WORKSPACE_ID },
     create: {
       id: DEMO_WORKSPACE_ID,
       name: 'Demo Workspace (seeded)',
-      ownerUserId: 'seed',
+      ownerUserId: demoUserId,
     },
     update: {},
   });
+
+  if (!existingUser) {
+    await prisma.user.create({
+      data: {
+        id: demoUserId,
+        email: DEMO_USER_EMAIL,
+        passwordHash: (await PasswordHash.hash(DEMO_USER_PASSWORD)).value,
+        workspaceId: DEMO_WORKSPACE_ID,
+      },
+    });
+  }
 
   await prisma.workflow.upsert({
     where: { id: DEMO_WORKFLOW_ID },
