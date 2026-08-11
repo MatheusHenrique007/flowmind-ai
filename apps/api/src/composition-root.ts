@@ -1,5 +1,5 @@
-import type { AIProvider } from '@flowmind/ai-contracts';
 import { ClaudeProvider } from '@flowmind/ai-claude';
+import type { AIProvider } from '@flowmind/ai-contracts';
 import { GeminiProvider } from '@flowmind/ai-gemini';
 import { MockAIProvider } from '@flowmind/ai-mock';
 import { OpenAIProvider } from '@flowmind/ai-openai';

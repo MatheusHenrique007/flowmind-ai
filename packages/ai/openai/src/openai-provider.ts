@@ -1,5 +1,5 @@
-import OpenAI from 'openai';
 import type { AIProvider, AIRequest, AIResponse } from '@flowmind/ai-contracts';
+import OpenAI from 'openai';
 
 export interface OpenAIProviderConfig {
   apiKey: string;

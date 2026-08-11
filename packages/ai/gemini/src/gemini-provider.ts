@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { AIProvider, AIRequest, AIResponse } from '@flowmind/ai-contracts';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface GeminiProviderConfig {
   apiKey: string;
