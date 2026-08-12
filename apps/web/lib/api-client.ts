@@ -1,6 +1,11 @@
 import { authorizedFetch } from './access-token-store';
 import { API_BASE_URL } from './auth-api';
-import type { WorkflowDto, WorkflowInputDto, WorkflowRunDto } from './workflow-dto';
+import type {
+  WorkflowDto,
+  WorkflowInputDto,
+  WorkflowRunDto,
+  WorkflowSummaryDto,
+} from './workflow-dto';
 
 /**
  * Every call goes through `authorizedFetch`, which attaches the in-memory access
@@ -49,4 +54,14 @@ export async function executeWorkflow(id: string, payload: unknown): Promise<voi
 export async function listWorkflowRuns(): Promise<WorkflowRunDto[]> {
   const response = await authorizedFetch(`${API_BASE_URL}/workflow-runs`);
   return parseOrThrow<WorkflowRunDto[]>(response);
+}
+
+export async function listWorkflows(): Promise<WorkflowSummaryDto[]> {
+  const response = await authorizedFetch(`${API_BASE_URL}/workflows`);
+  return parseOrThrow<WorkflowSummaryDto[]>(response);
+}
+
+export async function getWorkflow(id: string): Promise<WorkflowDto> {
+  const response = await authorizedFetch(`${API_BASE_URL}/workflows/${id}`);
+  return parseOrThrow<WorkflowDto>(response);
 }

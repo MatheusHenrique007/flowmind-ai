@@ -6,7 +6,7 @@ import type {
   TriggerFlowNode,
   WorkflowFlowNode,
 } from './node-types';
-import type { WorkflowInputDto, WorkflowStepDto } from './workflow-dto';
+import type { WorkflowDto, WorkflowInputDto, WorkflowStepDto } from './workflow-dto';
 
 export type MapWorkflowResult =
   { ok: true; input: WorkflowInputDto } | { ok: false; error: string };
@@ -80,4 +80,63 @@ export function mapFlowToWorkflowInput(
   ];
 
   return { ok: true, input: { name, steps } };
+}
+
+/**
+ * Inverse of mapFlowToWorkflowInput: reconstructs the 3 React Flow nodes
+ * (Trigger/AI/Destination, per Workflow.create()'s fixed shape) and the 2
+ * edges connecting them, from a workflow fetched via GET /workflows/:id.
+ *
+ * Node positions were never persisted (PrismaWorkflowRepository only ever
+ * stored {id, type, config}), so this always lays the graph out the same
+ * deterministic way INITIAL_NODES does in flow-editor.tsx — it never tries to
+ * restore where the user last dragged a node.
+ */
+export function mapWorkflowToFlow(workflow: WorkflowDto): {
+  nodes: WorkflowFlowNode[];
+  edges: Edge[];
+} {
+  const steps = workflow.steps ?? [];
+  const trigger = steps.find(
+    (step): step is Extract<WorkflowStepDto, { type: 'TRIGGER' }> => step.type === 'TRIGGER',
+  );
+  const ai = steps.find(
+    (step): step is Extract<WorkflowStepDto, { type: 'AI' }> => step.type === 'AI',
+  );
+  const destination = steps.find(
+    (step): step is Extract<WorkflowStepDto, { type: 'DESTINATION' }> =>
+      step.type === 'DESTINATION',
+  );
+
+  if (!trigger || !ai || !destination) {
+    throw new Error('Workflow is missing one of its required Trigger/AI/Destination steps.');
+  }
+
+  const nodes: WorkflowFlowNode[] = [
+    {
+      id: 'trigger-1',
+      type: 'trigger',
+      position: { x: 250, y: 0 },
+      data: { kind: trigger.kind },
+    },
+    {
+      id: 'ai-1',
+      type: 'ai',
+      position: { x: 200, y: 140 },
+      data: { provider: ai.provider, instruction: ai.instruction },
+    },
+    {
+      id: 'destination-1',
+      type: 'destination',
+      position: { x: 200, y: 340 },
+      data: { destination: destination.destination, target: destination.target },
+    },
+  ];
+
+  const edges: Edge[] = [
+    { id: 'trigger-1-ai-1', source: 'trigger-1', target: 'ai-1' },
+    { id: 'ai-1-destination-1', source: 'ai-1', target: 'destination-1' },
+  ];
+
+  return { nodes, edges };
 }

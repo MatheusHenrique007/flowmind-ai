@@ -34,6 +34,14 @@ export interface WorkflowInputDto {
 export interface WorkflowDto {
   id: string;
   name: string;
+  /** Only present on the GET /workflows/:id detail response, not on create/update. */
+  steps?: WorkflowStepDto[];
+}
+
+/** Lightweight shape returned by GET /workflows — no steps. */
+export interface WorkflowSummaryDto {
+  id: string;
+  name: string;
 }
 
 export interface WorkflowStepResultDto {
