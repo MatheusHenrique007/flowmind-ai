@@ -19,6 +19,7 @@ import { mapFlowToWorkflowInput } from '../lib/workflow-mapper';
 
 import { AINode } from './nodes/ai-node';
 import { DestinationNode } from './nodes/destination-node';
+import { SchedulesPanel } from './schedules-panel';
 import { TriggerNode } from './nodes/trigger-node';
 
 const nodeTypes = { trigger: TriggerNode, ai: AINode, destination: DestinationNode };
@@ -168,6 +169,8 @@ function FlowEditorInner() {
           <Controls />
         </ReactFlow>
       </div>
+
+      {saveState.status === 'saved' && <SchedulesPanel workflowId={saveState.workflowId} />}
     </div>
   );
 }
