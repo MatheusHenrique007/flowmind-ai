@@ -35,9 +35,12 @@ describe('GetWorkflowRun', () => {
   let workflowRunRepository: FakeWorkflowRunRepository;
   let getWorkflowRun: GetWorkflowRun;
 
+  let workflowRepository: FakeWorkflowRepository;
+
   beforeEach(() => {
     workflowRunRepository = new FakeWorkflowRunRepository();
-    getWorkflowRun = new GetWorkflowRun(workflowRunRepository);
+    workflowRepository = new FakeWorkflowRepository();
+    getWorkflowRun = new GetWorkflowRun(workflowRunRepository, workflowRepository);
   });
 
   it('throws WorkflowRunNotFoundError when no run exists with that id', async () => {
@@ -47,7 +50,6 @@ describe('GetWorkflowRun', () => {
   });
 
   it('returns the view for a run that was saved', async () => {
-    const workflowRepository = new FakeWorkflowRepository();
     const workflow = buildWorkflow();
     workflowRepository.seed(workflow);
     const engine = new FakeWorkflowEngine();
@@ -64,5 +66,47 @@ describe('GetWorkflowRun', () => {
 
     expect(view.id).toBe(run.id.value);
     expect(view.status).toBe(run.status);
+  });
+
+  it('attaches the owning workflow’s name to the view', async () => {
+    const workflow = buildWorkflow();
+    workflowRepository.seed(workflow);
+    const engine = new FakeWorkflowEngine();
+    engine.willReturn({
+      success: true,
+      context: ExecutionContext.create({ text: 'hi' }),
+      stepResults: [],
+      stepsExecuted: 3,
+    });
+    const executeWorkflow = new ExecuteWorkflow(workflowRepository, workflowRunRepository, engine);
+
+    const run = await executeWorkflow.execute(workspaceId, workflow.id, { text: 'hi' });
+    const view = await getWorkflowRun.execute(workspaceId, run.id);
+
+    expect(view.workflowName).toBe('Webhook to Slack');
+  });
+
+  it('leaves workflowName undefined when the owning workflow can no longer be found', async () => {
+    const workflow = buildWorkflow();
+    const otherWorkflowRepository = new FakeWorkflowRepository();
+    // Note: workflow is NOT seeded into `workflowRepository` used by getWorkflowRun.
+    const engine = new FakeWorkflowEngine();
+    engine.willReturn({
+      success: true,
+      context: ExecutionContext.create({ text: 'hi' }),
+      stepResults: [],
+      stepsExecuted: 3,
+    });
+    otherWorkflowRepository.seed(workflow);
+    const executeWorkflow = new ExecuteWorkflow(
+      otherWorkflowRepository,
+      workflowRunRepository,
+      engine,
+    );
+
+    const run = await executeWorkflow.execute(workspaceId, workflow.id, { text: 'hi' });
+    const view = await getWorkflowRun.execute(workspaceId, run.id);
+
+    expect(view.workflowName).toBeUndefined();
   });
 });

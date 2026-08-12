@@ -20,6 +20,8 @@ export interface WorkflowStepResultView {
 export interface WorkflowRunView {
   readonly id: string;
   readonly workflowId: string;
+  /** Resolved by the use case from WorkflowRepository, not stored with the run. Absent if the owning workflow can no longer be found. */
+  readonly workflowName?: string;
   readonly status: RunStatus;
   readonly startedAt?: Date;
   readonly finishedAt?: Date;
