@@ -6,6 +6,7 @@ import {
   StepType,
   Workflow,
   WorkflowStep,
+  WorkspaceId,
 } from '@flowmind/domain';
 import { describe, expect, it } from 'vitest';
 
@@ -27,6 +28,9 @@ function buildWorkflow(): Workflow {
       WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
       WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
     ],
+    // The Engine is workspace-agnostic — it never reads workspaceId. This is
+    // only here because Workflow.create() requires an owning workspace now.
+    workspaceId: WorkspaceId.generate(),
   });
 }
 
@@ -107,5 +111,48 @@ describe('Engine', () => {
     const result = await engine.execute(workflow, ExecutionContext.create('raw text'));
 
     expect(result.stepResults[1]!.error).toMatch(/AIProvider "CLAUDE" failed/);
+  });
+
+  it('routes each AI step to its own configured provider when a workflow mixes providers', async () => {
+    const claudeProvider = new FakeAIProvider();
+    claudeProvider.willReturn({ content: 'claude summary', model: 'claude-3-5-sonnet' });
+    const openaiProvider = new FakeAIProvider();
+    openaiProvider.willReturn({ content: 'openai summary', model: 'gpt-4o' });
+    const destination = new FakeDestination();
+    destination.willReturn({ delivered: true });
+
+    const providersByType: Partial<Record<Provider, FakeAIProvider>> = {
+      [Provider.CLAUDE]: claudeProvider,
+      [Provider.OPENAI]: openaiProvider,
+    };
+    const registry = new StepExecutorRegistry();
+    registry.register(StepType.TRIGGER, new TriggerExecutor());
+    registry.register(StepType.AI, new AIExecutor((provider) => providersByType[provider]));
+    registry.register(StepType.DESTINATION, new DestinationExecutor(() => destination));
+
+    const workflow = Workflow.create({
+      name: 'Multi-provider workflow',
+      steps: [
+        WorkflowStep.trigger({ kind: 'webhook' }),
+        WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize with Claude.' }),
+        WorkflowStep.ai({ provider: Provider.OPENAI, instruction: 'Summarize with OpenAI.' }),
+        WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#alerts' }),
+      ],
+      workspaceId: WorkspaceId.generate(),
+    });
+    const engine = new Engine(registry, new FakeClock());
+
+    const result = await engine.execute(workflow, ExecutionContext.create('raw ticket text'));
+
+    expect(result.success).toBe(true);
+    expect(claudeProvider.lastRequest?.messages).toEqual([
+      { role: 'system', content: 'Summarize with Claude.' },
+      { role: 'user', content: 'raw ticket text' },
+    ]);
+    expect(openaiProvider.lastRequest?.messages).toEqual([
+      { role: 'system', content: 'Summarize with OpenAI.' },
+      { role: 'user', content: 'raw ticket text' },
+    ]);
+    expect(result.stepResults[2]!.status).toBe(StepResultStatus.SUCCEEDED);
   });
 });

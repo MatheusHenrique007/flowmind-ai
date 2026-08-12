@@ -9,8 +9,10 @@ import {
   InvalidWorkflowDefinitionError,
   WorkflowId,
 } from '@flowmind/domain';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, preHandlerAsyncHookHandler } from 'fastify';
 import { ZodError, z } from 'zod';
+
+import { authOf } from '../auth/require-auth.js';
 
 const stepSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('TRIGGER'), kind: z.literal('webhook') }),
@@ -43,15 +45,24 @@ function isValidationError(error: unknown): error is Error {
  * Presentation only: parses/validates the request shape with Zod and maps
  * validation/not-found errors to the right HTTP status — the use cases
  * themselves know nothing about HTTP.
+ *
+ * The workspace always comes from the verified access token (`authOf`), never
+ * from the request body — the input schema has no workspace field at all, so a
+ * client cannot even express "create this in someone else's workspace". A
+ * workflow owned by another workspace produces 404, not 403 (ADR-0004).
  */
 export async function registerWorkflowRoutes(
   app: FastifyInstance,
-  deps: { createWorkflow: CreateWorkflow; updateWorkflow: UpdateWorkflow },
+  deps: {
+    createWorkflow: CreateWorkflow;
+    updateWorkflow: UpdateWorkflow;
+    requireAuth: preHandlerAsyncHookHandler;
+  },
 ): Promise<void> {
-  app.post('/workflows', async (request, reply) => {
+  app.post('/workflows', { preHandler: deps.requireAuth }, async (request, reply) => {
     try {
       const input = workflowInputSchema.parse(request.body) as WorkflowInput;
-      const workflow = await deps.createWorkflow.execute(input);
+      const workflow = await deps.createWorkflow.execute(authOf(request).workspaceId, input);
       return reply.status(201).send({ id: workflow.id.value, name: workflow.name });
     } catch (error) {
       if (isValidationError(error)) {
@@ -61,22 +72,27 @@ export async function registerWorkflowRoutes(
     }
   });
 
-  app.put<{ Params: { id: string } }>('/workflows/:id', async (request, reply) => {
-    try {
-      const input = workflowInputSchema.parse(request.body) as WorkflowInput;
-      const workflow = await deps.updateWorkflow.execute(
-        WorkflowId.create(request.params.id),
-        input,
-      );
-      return { id: workflow.id.value, name: workflow.name };
-    } catch (error) {
-      if (error instanceof WorkflowNotFoundError) {
-        return reply.status(404).send({ error: error.message });
+  app.put<{ Params: { id: string } }>(
+    '/workflows/:id',
+    { preHandler: deps.requireAuth },
+    async (request, reply) => {
+      try {
+        const input = workflowInputSchema.parse(request.body) as WorkflowInput;
+        const workflow = await deps.updateWorkflow.execute(
+          authOf(request).workspaceId,
+          WorkflowId.create(request.params.id),
+          input,
+        );
+        return { id: workflow.id.value, name: workflow.name };
+      } catch (error) {
+        if (error instanceof WorkflowNotFoundError) {
+          return reply.status(404).send({ error: error.message });
+        }
+        if (isValidationError(error)) {
+          return reply.status(400).send({ error: error.message });
+        }
+        throw error;
       }
-      if (isValidationError(error)) {
-        return reply.status(400).send({ error: error.message });
-      }
-      throw error;
-    }
-  });
+    },
+  );
 }

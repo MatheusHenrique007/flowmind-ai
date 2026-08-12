@@ -1,6 +1,7 @@
 import { StepType } from '../enums/step-type.js';
 import { InvalidWorkflowDefinitionError } from '../errors/invalid-workflow-definition-error.js';
 import { WorkflowId } from '../value-objects/workflow-id.js';
+import type { WorkspaceId } from '../value-objects/workspace-id.js';
 
 import type { WorkflowStep } from './workflow-step.js';
 
@@ -17,17 +18,30 @@ export class Workflow {
   readonly id: WorkflowId;
   readonly name: string;
   readonly steps: readonly WorkflowStep[];
+  /**
+   * The owning tenant. Required since v0.4.0 — a Workflow with no Workspace
+   * is not representable, which is what makes cross-tenant leakage a type
+   * error rather than a forgotten filter (see ADR-0004).
+   */
+  readonly workspaceId: WorkspaceId;
 
-  private constructor(id: WorkflowId, name: string, steps: readonly WorkflowStep[]) {
+  private constructor(
+    id: WorkflowId,
+    name: string,
+    steps: readonly WorkflowStep[],
+    workspaceId: WorkspaceId,
+  ) {
     this.id = id;
     this.name = name;
     this.steps = steps;
+    this.workspaceId = workspaceId;
   }
 
   static create(params: {
     id?: WorkflowId;
     name: string;
     steps: readonly WorkflowStep[];
+    workspaceId: WorkspaceId;
   }): Workflow {
     const name = params.name.trim();
     if (name.length === 0) {
@@ -50,6 +64,6 @@ export class Workflow {
       }
     }
 
-    return new Workflow(params.id ?? WorkflowId.generate(), name, params.steps);
+    return new Workflow(params.id ?? WorkflowId.generate(), name, params.steps, params.workspaceId);
   }
 }

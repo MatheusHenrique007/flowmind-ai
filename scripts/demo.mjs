@@ -6,8 +6,13 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const DEMO_WORKFLOW_ID = 'webhook-to-slack-demo';
+// Must match packages/infrastructure/prisma/seed.ts's DEMO_WORKFLOW_ID.
+const DEMO_WORKFLOW_ID = 'demo-webhook-to-slack';
 const REQUIRED_ENV_VARS = ['DATABASE_URL', 'REDIS_URL'];
+// Must match packages/infrastructure/prisma/seed.ts's DEMO_USER_EMAIL/PASSWORD —
+// every route requires auth since v0.4.0, so the demo needs a real access token.
+const DEMO_USER_EMAIL = 'demo@flowmind.local';
+const DEMO_USER_PASSWORD = 'flowmind-demo-password';
 
 function loadDotEnv() {
   if (!existsSync('.env')) return;
@@ -72,9 +77,20 @@ async function main() {
     );
   }
 
-  step('Syncing the Prisma schema (prisma db push)');
-  if (!runSync('pnpm', ['--filter', '@flowmind/infrastructure', 'exec', 'prisma', 'db', 'push'])) {
-    return fail('Could not sync the Prisma schema — is DATABASE_URL reachable?');
+  // `prisma migrate deploy`, not `db push`: the project has real rows now, and
+  // only a migration can express a backfill safely (docs/adr/0004-...).
+  step('Applying Prisma migrations (prisma migrate deploy)');
+  if (
+    !runSync('pnpm', [
+      '--filter',
+      '@flowmind/infrastructure',
+      'exec',
+      'prisma',
+      'migrate',
+      'deploy',
+    ])
+  ) {
+    return fail('Could not apply the Prisma migrations — is DATABASE_URL reachable?');
   }
 
   step('Seeding the demo workflow (pnpm seed)');
@@ -131,10 +147,24 @@ async function main() {
     );
   }
 
+  step('Logging in as the seeded demo user (POST /auth/login)');
+  const loginResponse = await fetch(`${baseUrl}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: DEMO_USER_EMAIL, password: DEMO_USER_PASSWORD }),
+  });
+  if (!loginResponse.ok) {
+    stopApi();
+    return fail(`Login as the demo user failed with status ${loginResponse.status}.`);
+  }
+  const { accessToken } = await loginResponse.json();
+  const authHeaders = { Authorization: `Bearer ${accessToken}` };
+  console.log('  Authenticated.');
+
   step(`Firing the webhook (POST /webhooks/${DEMO_WORKFLOW_ID})`);
   const webhookResponse = await fetch(`${baseUrl}/webhooks/${DEMO_WORKFLOW_ID}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({
       text: 'Customer reported a checkout error and needs urgent help.',
     }),
@@ -148,7 +178,7 @@ async function main() {
   step('Waiting for the run to finish');
   let finishedRun;
   const finished = await waitFor('the run to reach a terminal status', async () => {
-    const runs = await (await fetch(`${baseUrl}/workflow-runs`)).json();
+    const runs = await (await fetch(`${baseUrl}/workflow-runs`, { headers: authHeaders })).json();
     const latest = runs.find((run) => run.workflowId === DEMO_WORKFLOW_ID);
     if (latest && (latest.status === 'SUCCEEDED' || latest.status === 'FAILED')) {
       finishedRun = latest;

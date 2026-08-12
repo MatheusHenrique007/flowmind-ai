@@ -1,5 +1,5 @@
 import type { ExecuteWorkflow } from '@flowmind/application';
-import { WorkflowId } from '@flowmind/domain';
+import { WorkflowId, WorkspaceId } from '@flowmind/domain';
 import { Worker, type ConnectionOptions } from 'bullmq';
 
 import {
@@ -23,6 +23,7 @@ export function startWorkflowWorker(params: {
     WORKFLOW_EXECUTION_QUEUE_NAME,
     async (job) => {
       await params.executeWorkflow.execute(
+        WorkspaceId.create(job.data.workspaceId),
         WorkflowId.create(job.data.workflowId),
         job.data.payload,
       );

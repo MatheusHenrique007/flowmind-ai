@@ -7,16 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Workspace.ownerUserId is intentionally a plain column, not a foreign key:
+// User -> Workspace is already a required FK (below), and a Workspace ->
+// User FK too would make the two tables circularly dependent, which Postgres
+// cannot satisfy without deferred constraints. Application code always sets
+// it correctly (RegisterUser generates both ids before inserting either
+// row); see docs/adr/0004-workspace-isolation-and-migration-process.md.
+model Workspace {
+  id          String     @id
+  name        String
+  ownerUserId String
+  createdAt   DateTime   @default(now())
+  users       User[]
+  workflows   Workflow[]
+
+  @@map("workspaces")
+}
+
+model User {
+  id            String         @id
+  email         String         @unique
+  passwordHash  String
+  workspaceId   String
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime       @default(now())
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
 // Steps are stored as JSON, not a relational table: this release has exactly
 // one hardcoded Workflow, seeded via prisma/seed.ts — a full Step table with
 // ordering/foreign keys is deferred until workflow authoring is a real
 // feature (see docs/adr/0001-foundation-decisions.md's overengineering rule).
 model Workflow {
-  id        String        @id
-  name      String
-  steps     Json
-  createdAt DateTime      @default(now())
-  runs      WorkflowRun[]
+  id          String        @id
+  name        String
+  steps       Json
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id])
+  createdAt   DateTime      @default(now())
+  runs        WorkflowRun[]
 
   @@map("workflows")
 }
@@ -25,6 +70,10 @@ model WorkflowRun {
   id          String                     @id
   workflowId  String
   workflow    Workflow                   @relation(fields: [workflowId], references: [id])
+  // Denormalized from workflow.workspaceId — defense in depth so isolation
+  // doesn't depend on every query joining through workflows correctly. See
+  // ADR-0004.
+  workspaceId String
   status      String
   startedAt   DateTime?
   finishedAt  DateTime?

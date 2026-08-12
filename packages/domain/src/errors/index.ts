@@ -5,3 +5,7 @@ export * from './workflow-run-already-finished-error.js';
 export * from './invalid-workflow-run-transition-error.js';
 export * from './invalid-execution-context-error.js';
 export * from './invalid-id-error.js';
+export * from './invalid-email-error.js';
+export * from './invalid-workspace-error.js';
+export * from './weak-password-error.js';
+export * from './invalid-password-hash-error.js';

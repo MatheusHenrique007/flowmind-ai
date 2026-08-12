@@ -8,9 +8,13 @@ import { InvalidWorkflowRunTransitionError } from '../errors/invalid-workflow-ru
 import { WorkflowRunAlreadyFinishedError } from '../errors/workflow-run-already-finished-error.js';
 import { WorkflowId } from '../value-objects/workflow-id.js';
 import { WorkflowStepId } from '../value-objects/workflow-step-id.js';
+import { WorkspaceId } from '../value-objects/workspace-id.js';
 
 function newRun(): WorkflowRun {
-  return WorkflowRun.create({ workflowId: WorkflowId.generate() });
+  return WorkflowRun.create({
+    workflowId: WorkflowId.generate(),
+    workspaceId: WorkspaceId.generate(),
+  });
 }
 
 describe('WorkflowRun', () => {

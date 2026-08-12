@@ -8,11 +8,14 @@ import {
   WorkflowRunId,
   WorkflowStepId,
   WorkflowStepResult,
+  WorkspaceId,
 } from '@flowmind/domain';
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PrismaWorkflowRunRepository } from '../persistence/prisma-workflow-run-repository.js';
+
+import { createTestWorkspace, deleteTestWorkspace } from './helpers/test-workspace.js';
 
 /**
  * Creates its own uniquely-id'd Workflow row rather than truncating shared
@@ -23,26 +26,37 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRunRepository', () => 
   const prisma = new PrismaClient();
   const repository = new PrismaWorkflowRunRepository(prisma);
   const workflowId = randomUUID();
+  const workspaceId = WorkspaceId.generate();
 
   beforeAll(async () => {
+    await createTestWorkspace(prisma, workspaceId);
     await prisma.workflow.create({
-      data: { id: workflowId, name: 'Webhook to Slack (integration test)', steps: [] },
+      data: {
+        id: workflowId,
+        name: 'Webhook to Slack (integration test)',
+        steps: [],
+        workspaceId: workspaceId.value,
+      },
     });
   });
 
   afterAll(async () => {
     await prisma.workflowRun.deleteMany({ where: { workflowId } });
     await prisma.workflow.delete({ where: { id: workflowId } });
+    await deleteTestWorkspace(prisma, workspaceId);
     await prisma.$disconnect();
   });
 
   it('returns null for a run id that does not exist', async () => {
-    const view = await repository.findViewById(WorkflowRunId.generate());
+    const view = await repository.findViewById(WorkflowRunId.generate(), workspaceId);
     expect(view).toBeNull();
   });
 
   it('persists a run across PENDING -> RUNNING -> SUCCEEDED and reads back the final view', async () => {
-    const run = WorkflowRun.create({ workflowId: WorkflowId.create(workflowId) });
+    const run = WorkflowRun.create({
+      workflowId: WorkflowId.create(workflowId),
+      workspaceId,
+    });
     await repository.save(run);
 
     run.start();
@@ -59,7 +73,7 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRunRepository', () => 
     run.complete();
     await repository.save(run);
 
-    const view = await repository.findViewById(run.id);
+    const view = await repository.findViewById(run.id, workspaceId);
 
     expect(view?.status).toBe(RunStatus.SUCCEEDED);
     expect(view?.workflowId).toBe(workflowId);
@@ -69,7 +83,7 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRunRepository', () => 
   });
 
   it('lists at least the run just created for this test workflow', async () => {
-    const views = await repository.listViews();
+    const views = await repository.listViews(workspaceId);
     expect(views.some((view) => view.workflowId === workflowId)).toBe(true);
   });
 });

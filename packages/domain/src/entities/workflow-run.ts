@@ -3,6 +3,7 @@ import { InvalidWorkflowRunTransitionError } from '../errors/invalid-workflow-ru
 import { WorkflowRunAlreadyFinishedError } from '../errors/workflow-run-already-finished-error.js';
 import type { WorkflowId } from '../value-objects/workflow-id.js';
 import { WorkflowRunId } from '../value-objects/workflow-run-id.js';
+import type { WorkspaceId } from '../value-objects/workspace-id.js';
 
 import type { WorkflowStepResult } from './workflow-step-result.js';
 
@@ -14,19 +15,34 @@ import type { WorkflowStepResult } from './workflow-step-result.js';
 export class WorkflowRun {
   readonly id: WorkflowRunId;
   readonly workflowId: WorkflowId;
+  /**
+   * Denormalized from the owning Workflow — defense in depth so run isolation
+   * never depends on a query remembering to join through `workflows`. Set
+   * once at creation, never changed afterwards (ADR-0004).
+   */
+  readonly workspaceId: WorkspaceId;
   private _status: RunStatus;
   private _startedAt?: Date;
   private _finishedAt?: Date;
   private readonly _stepResults: WorkflowStepResult[] = [];
 
-  private constructor(id: WorkflowRunId, workflowId: WorkflowId) {
+  private constructor(id: WorkflowRunId, workflowId: WorkflowId, workspaceId: WorkspaceId) {
     this.id = id;
     this.workflowId = workflowId;
+    this.workspaceId = workspaceId;
     this._status = RunStatus.PENDING;
   }
 
-  static create(params: { id?: WorkflowRunId; workflowId: WorkflowId }): WorkflowRun {
-    return new WorkflowRun(params.id ?? WorkflowRunId.generate(), params.workflowId);
+  static create(params: {
+    id?: WorkflowRunId;
+    workflowId: WorkflowId;
+    workspaceId: WorkspaceId;
+  }): WorkflowRun {
+    return new WorkflowRun(
+      params.id ?? WorkflowRunId.generate(),
+      params.workflowId,
+      params.workspaceId,
+    );
   }
 
   get status(): RunStatus {

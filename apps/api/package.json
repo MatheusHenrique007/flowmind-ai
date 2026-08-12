@@ -16,6 +16,10 @@
   "dependencies": {
     "@fastify/cors": "^10.0.1",
     "@flowmind/ai-claude": "workspace:*",
+    "@flowmind/ai-contracts": "workspace:*",
+    "@flowmind/ai-gemini": "workspace:*",
+    "@flowmind/ai-mock": "workspace:*",
+    "@flowmind/ai-openai": "workspace:*",
     "@flowmind/application": "workspace:*",
     "@flowmind/destinations-slack": "workspace:*",
     "@flowmind/domain": "workspace:*",

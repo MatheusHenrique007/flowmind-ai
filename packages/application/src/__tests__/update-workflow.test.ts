@@ -1,4 +1,4 @@
-import { DestinationKind, Provider, WorkflowId } from '@flowmind/domain';
+import { DestinationKind, Provider, WorkflowId, WorkspaceId } from '@flowmind/domain';
 import { describe, expect, it } from 'vitest';
 
 import { WorkflowNotFoundError } from '../errors/workflow-not-found-error.js';
@@ -18,21 +18,27 @@ function validInput(instruction: string) {
   };
 }
 
+const workspaceId = WorkspaceId.generate();
+
 describe('UpdateWorkflow', () => {
   it('throws WorkflowNotFoundError when the workflow does not exist', async () => {
     const repository = new FakeWorkflowRepository();
     const useCase = new UpdateWorkflow(repository);
 
-    await expect(useCase.execute(WorkflowId.generate(), validInput('x'))).rejects.toThrow(
-      WorkflowNotFoundError,
-    );
+    await expect(
+      useCase.execute(workspaceId, WorkflowId.generate(), validInput('x')),
+    ).rejects.toThrow(WorkflowNotFoundError);
   });
 
   it('replaces the definition of an existing workflow, keeping its id', async () => {
     const repository = new FakeWorkflowRepository();
-    const created = await new CreateWorkflow(repository).execute(validInput('Summarize.'));
+    const created = await new CreateWorkflow(repository).execute(
+      workspaceId,
+      validInput('Summarize.'),
+    );
 
     const updated = await new UpdateWorkflow(repository).execute(
+      workspaceId,
       created.id,
       validInput('Classify urgency.'),
     );

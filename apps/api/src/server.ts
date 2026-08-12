@@ -3,31 +3,51 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 
+import { buildRequireAuth } from './auth/require-auth.js';
 import type { CompositionRoot } from './composition-root.js';
 import { buildCompositionRoot } from './composition-root.js';
-import { loadEnv } from './env.js';
+import { allowedOrigins, loadEnv, type Env } from './env.js';
+import { registerAuthRoutes } from './routes/auth.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerWorkflowRunRoutes } from './routes/workflow-runs.js';
 import { registerWorkflowRoutes } from './routes/workflows.js';
 
-export async function buildServer(root: CompositionRoot): Promise<FastifyInstance> {
+export async function buildServer(root: CompositionRoot, env: Env): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
 
-  // Permissive in this release: there is no auth yet, and the editor
-  // (apps/web) needs to call this API directly from the browser.
-  await app.register(cors, { origin: true });
+  // An explicit allow-list, not the previous `origin: true` (reflect-any):
+  // `credentials: true` is required for the browser to send the refresh cookie,
+  // and reflect-any + credentials would let any site drive an authenticated
+  // session. See PRD v0.4.0 / ADR-0003.
+  await app.register(cors, { origin: allowedOrigins(env), credentials: true });
+
+  const requireAuth = buildRequireAuth(root.tokenService);
 
   // OpenAPI/Swagger wiring lands in a later release, once more routes exist to document.
+  // /health stays public — it exposes no tenant data and is what deploys probe.
   app.get('/health', async () => root.checkHealth());
 
-  await registerWebhookRoutes(app, { workflowQueue: root.workflowQueue });
+  await registerAuthRoutes(app, {
+    registerUser: root.registerUser,
+    loginUser: root.loginUser,
+    refreshSession: root.refreshSession,
+    logoutUser: root.logoutUser,
+    getCurrentUser: root.getCurrentUser,
+    requireAuth,
+    // Browsers reject Secure cookies over plain http://localhost, so the
+    // attribute is set everywhere except local development.
+    secureCookies: env.NODE_ENV !== 'development',
+  });
+  await registerWebhookRoutes(app, { workflowQueue: root.workflowQueue, requireAuth });
   await registerWorkflowRunRoutes(app, {
     getWorkflowRun: root.getWorkflowRun,
     listWorkflowRuns: root.listWorkflowRuns,
+    requireAuth,
   });
   await registerWorkflowRoutes(app, {
     createWorkflow: root.createWorkflow,
     updateWorkflow: root.updateWorkflow,
+    requireAuth,
   });
 
   return app;
@@ -36,7 +56,7 @@ export async function buildServer(root: CompositionRoot): Promise<FastifyInstanc
 async function main(): Promise<void> {
   const env = loadEnv();
   const root = buildCompositionRoot(env);
-  const app = await buildServer(root);
+  const app = await buildServer(root, env);
 
   const shutdown = async (): Promise<void> => {
     await app.close();

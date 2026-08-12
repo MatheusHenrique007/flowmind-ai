@@ -73,3 +73,42 @@ deploy` for applying it in CI/`pnpm demo`, updating every place that referenced 
   the cost (one denormalized field) is low and the failure mode it prevents (a missed join
   condition leaking another tenant's run data) is exactly the kind of mistake this release exists
   to make structurally hard to commit.
+
+## Amendment (2026-08-10): `WorkspaceRepository.createWithOwner()`
+
+Added during v0.4.0 implementation, after this ADR and the PRD were already approved.
+
+**Gap discovered during implementation**: the PRD requires `RegisterUser` to create a User and
+its owning Workspace "atomically," but lists `WorkspaceRepository` as only `findById`/`save`. Two
+independent `save()` calls cannot express atomicity — each is its own transaction, so a crash
+between them can leave an orphan Workspace, or a User pointing at a Workspace that was never
+committed. The PRD's port shape did not correctly express this operation; the gap was not visible
+until `RegisterUser` was actually implemented.
+
+**Decision**: added one method to the `WorkspaceRepository` port —
+`createWithOwner(workspace: Workspace, owner: User): Promise<void>` — persisting both rows
+together, or neither. The port signature itself stays free of Prisma/Infrastructure: it still
+takes and knows only Domain types (`Workspace`, `User`), same as every other port method.
+Atomicity is an Infrastructure concern — `PrismaWorkspaceRepository.createWithOwner()` implements
+it with a single `prisma.$transaction([...])` batch (Workspace row first, since `users.workspaceId`
+is a real foreign key while `workspaces.ownerUserId` deliberately is not — see schema.prisma).
+
+**Atomicity is proven, not assumed**: `prisma-user-repository.test.ts` runs against real
+PostgreSQL and deliberately registers a second account with a duplicate email (violating the
+`users.email` unique constraint) inside `createWithOwner()`, asserts the call rejects, and then
+asserts the second Workspace row was **not** left behind — proving the transaction rolled back
+both inserts together, not just the one that failed.
+
+**Scope**: `createWithOwner()` is currently called only from `RegisterUser`. No other use case
+creates a Workspace.
+
+**Alternatives considered**
+
+- **A generic `UnitOfWork`/`TransactionManager` abstraction**: rejected as overengineering at this
+  stage — the project has exactly one operation that needs cross-aggregate atomicity. Introducing
+  a general transactional abstraction for a single call site is speculative generality the
+  project's existing "no overengineering" rule exists to prevent; revisit if a second such
+  operation appears.
+- **Calling Prisma directly from `RegisterUser` (Application)**: rejected — it would let
+  Application import Infrastructure, inverting the dependency direction Clean Architecture (and
+  this project's `no-restricted-imports` ESLint rule) exists to enforce.

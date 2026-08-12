@@ -6,7 +6,7 @@
 
 # 🧠 FlowMind AI
 
-**AI-powered workflow automation — webhook in, Claude in the middle, Slack out.**
+**AI-powered workflow automation — webhook in, Claude/OpenAI/Gemini in the middle, Slack out.**
 
 [![CI](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -15,7 +15,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**Current Version**: v0.2.2 · **Status**: Execution Engine, Recruiter-Ready · **Next**: v0.3.0 — Visual Workflow Builder
+**Current Version**: v0.5.0 · **Status**: Multi-Provider AI · **Next**: unscheduled (see [Roadmap](#roadmap))
 
 </div>
 
@@ -39,14 +39,14 @@ a real product team would build it, in public, one Release at a time:
 
 ## Project Status
 
-|                                  |                                                                                               |
-| -------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Version**                      | v0.2.2                                                                                        |
-| **Stage**                        | Execution engine proven end to end; no visual editor yet                                      |
-| **What works today**             | `Webhook → Claude → Slack`, one hardcoded workflow, full run history, dependency health check |
-| **What doesn't exist yet**       | Workflow authoring UI, multi-tenant auth, multiple triggers/providers/destinations            |
-| **CI**                           | ![CI](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml/badge.svg)   |
-| **Test coverage (this release)** | 60+ unit tests (Domain/Application/Engine) + 5 real Postgres integration tests                |
+|                                  |                                                                                                                                                                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Version**                      | v0.5.0                                                                                                                                                                                                                                        |
+| **Stage**                        | Visual editor, multi-tenant auth, and multi-provider AI all shipped                                                                                                                                                                           |
+| **What works today**             | `Webhook → (Claude \| OpenAI \| Gemini) → Slack` authored visually, workspace-scoped auth, full run history, dependency health check; any AI step with no matching API key runs against a clearly-labeled `MockAIProvider` instead of failing |
+| **What doesn't exist yet**       | Runtime fallback between AI providers, additional triggers/destinations, billing                                                                                                                                                              |
+| **CI**                           | ![CI](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml/badge.svg)                                                                                                                                                   |
+| **Test coverage (this release)** | 60+ unit tests (Domain/Application/Engine) + 5 real Postgres integration tests                                                                                                                                                                |
 
 ## Quick Start
 
@@ -60,15 +60,20 @@ pnpm demo
 
 That's it — `pnpm demo` brings up Postgres/Redis, seeds the demo workflow, boots the API, fires
 the webhook, and prints the result. See [Run the demo](#run-the-demo) below for what to expect
-with and without real `ANTHROPIC_API_KEY`/`SLACK_BOT_TOKEN` values.
+with and without real `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`/`SLACK_BOT_TOKEN`
+values — with none of them set, the AI step now succeeds against a clearly-labeled
+`MockAIProvider` instead of failing (see
+[ADR-0005](docs/adr/0005-provider-selection-strategy.md)).
 
 FlowMind AI is a B2B SaaS workflow automation platform, in the spirit of Zapier or n8n: users
 compose triggers, AI steps, and integrations into automated workflows. **v0.1.0** built the
 monorepo foundation; **v0.2.0** proved the execution engine end to end with one hardcoded
 workflow; **v0.2.1**/**v0.2.2** turned that technical MVP into something anyone can clone,
-configure, and demo in under 10 minutes.
+configure, and demo in under 10 minutes; **v0.3.0** replaced the seed script with a visual,
+React Flow-based editor; **v0.4.0** added workspace-scoped multi-tenant auth; **v0.5.0** added
+real OpenAI/Gemini adapters alongside Claude, with a mock-provider fallback for undemoed keys.
 
-No visual editor yet — see [Roadmap](#roadmap) for what's next.
+Visual, React Flow-based editor lives in `apps/web` (shipped v0.3.0) — see [Roadmap](#roadmap).
 
 ## Key features
 
@@ -114,10 +119,10 @@ Webhook  ──POST /webhooks/:workflowId──▶  Fastify API
 - **Application** (`packages/application`) — use cases (`ExecuteWorkflow`, `GetWorkflowRun`,
   `ListWorkflowRuns`) and the ports Infrastructure implements. Depends only on Domain.
 - **Engine** (`packages/engine`) — runs a Workflow's steps sequentially through a
-  `StepExecutorRegistry`; knows only the `AIProvider`/`Destination` contracts, never Claude or
-  Slack directly.
-- **Infrastructure** — Prisma repositories, `ClaudeProvider`, `SlackDestination`, the BullMQ
-  queue/worker. Implements Application's ports.
+  `StepExecutorRegistry`; knows only the `AIProvider`/`Destination` contracts, never a concrete
+  provider or destination directly.
+- **Infrastructure** — Prisma repositories, `ClaudeProvider`/`OpenAIProvider`/`GeminiProvider`/
+  `MockAIProvider`, `SlackDestination`, the BullMQ queue/worker. Implements Application's ports.
 - **Presentation** (`apps/api`) — Fastify routes and the composition root that wires everything.
 
 ## Monorepo structure
@@ -126,7 +131,7 @@ Webhook  ──POST /webhooks/:workflowId──▶  Fastify API
 flowmind-ai/
 ├── apps/
 │   ├── api/                     # Fastify HTTP API (Presentation) + composition root
-│   └── web/                     # Next.js frontend (Presentation) — placeholder until v0.3+
+│   └── web/                     # Next.js frontend (Presentation) — visual editor + auth pages
 ├── packages/
 │   ├── domain/                  # @flowmind/domain
 │   ├── application/             # @flowmind/application
@@ -234,9 +239,13 @@ See [docs/demo/record-demo.md](docs/demo/record-demo.md) for exactly how to reco
 - **v0.1.0** — Monorepo foundation, tooling, CI ✅
 - **v0.2.0** — Execution engine proven end to end (Webhook → Claude → Slack) ✅
 - **v0.2.1** — Product polish: README, demo command, health check, seed script ✅
-- **v0.2.2** — GitHub showcase: fixed doc/code divergences, Quick Start, recording guide (this release) ✅
-- **v0.3.0** — Visual Workflow Builder (React Flow) — planning starts after this release
-- **Future** — Visual workflow editor, multi-tenant auth, billing, node marketplace
+- **v0.2.2** — GitHub showcase: fixed doc/code divergences, Quick Start, recording guide ✅
+- **v0.3.0** — Visual Workflow Builder (React Flow canvas authors the workflow) ✅
+- **v0.4.0** — Multi-Tenant Auth (register/login, workspace-scoped workflows) ✅
+- **v0.5.0** — Multi-Provider AI (real OpenAI/Gemini adapters, mock-provider fallback) ✅ (this release)
+- **Future** — Runtime fallback between AI providers, billing, node marketplace
+
+See [ROADMAP.md](ROADMAP.md) for full detail on every release.
 
 Full detail: [ROADMAP.md](ROADMAP.md).
 

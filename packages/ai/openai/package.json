@@ -13,7 +13,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@flowmind/ai-contracts": "workspace:*"
+    "@flowmind/ai-contracts": "workspace:*",
+    "openai": "^4.68.0"
   },
   "devDependencies": {
     "@flowmind/eslint-config": "workspace:*",

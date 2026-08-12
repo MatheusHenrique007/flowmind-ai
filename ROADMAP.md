@@ -92,10 +92,47 @@ anyone) can clone, configure, and demo in under 10 minutes.
   became optional (the app boots and degrades gracefully without them) and `.env` loading was
   added at the process entry points — none of it touches business rules
 
+## v0.3.0 — Visual Workflow Builder ✅
+
+Full PRD: [docs/prd/v0.3.0-visual-workflow-builder.md](docs/prd/v0.3.0-visual-workflow-builder.md).
+
+- React Flow canvas in `apps/web`: authors the same fixed webhook → AI → destination shape v0.2.0
+  hardcoded, now via drag/connect instead of a seed script
+- Node palette and per-node config panels (trigger, AI, destination)
+- Workflow persistence through the existing Application/Infrastructure layers — no Domain/Engine
+  changes required, since the shape stays the one already proven end to end
+
+## v0.4.0 — Multi-Tenant Auth (Basic) ✅
+
+Full PRD: [docs/prd/v0.4.0-multi-tenant-auth.md](docs/prd/v0.4.0-multi-tenant-auth.md).
+
+- Register → Login → Workspace → Dashboard → Protected Workflow → Logout, one user per Workspace
+- `User`, `Workspace`, `RefreshToken`, `PasswordHash` Domain entities/value objects; every
+  Workflow now belongs to a Workspace
+- JWT access tokens (15 min) + rotating opaque refresh tokens (ADR-0003); a real Prisma migration
+  (not `db push`) backfills existing rows into a legacy workspace (ADR-0004)
+- CORS becomes an explicit `WEB_ORIGIN` allow-list with credentials, replacing `origin: true`
+- Every route authenticated; `apps/web` gets login/register pages and gates the editor
+
+## v0.5.0 — Multi-Provider AI ✅
+
+Full PRD: [docs/prd/v0.5.0-multi-provider-ai.md](docs/prd/v0.5.0-multi-provider-ai.md). Decision
+record: [docs/adr/0005-provider-selection-strategy.md](docs/adr/0005-provider-selection-strategy.md).
+
+- Real `OpenAIProvider` (`packages/ai/openai`) and `GeminiProvider` (`packages/ai/gemini`)
+  adapters, replacing the `Not implemented` stubs, using the official `openai` and
+  `@google/generative-ai` SDKs
+- New `@flowmind/ai-mock` package: a deterministic `MockAIProvider`, substituted by the
+  composition root — never by the Engine, never selectable from a workflow — whenever a
+  provider's API key is absent at boot, so `pnpm demo` succeeds end to end with zero AI keys
+- No new selection abstraction: per-step provider choice already worked via
+  `AIStepConfig.provider` + `AIExecutor`'s injected resolver (confirmed with a multi-provider
+  Engine test), extended rather than replaced
+- `apps/web`'s AI node dropdown gains OpenAI/Gemini options (no Mock option, ever)
+
 ## Future (unscheduled, directional only)
 
-- Visual workflow editor (React Flow canvas, node palette, drag/connect)
-- Multi-tenant authentication and authorization
+- Automatic runtime fallback between AI providers (explicitly deferred by ADR-0005)
 - Billing and subscription management
 - Marketplace of third-party/community node types
 
