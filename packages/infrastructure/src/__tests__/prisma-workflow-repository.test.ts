@@ -139,4 +139,43 @@ describe.skipIf(!process.env.DATABASE_URL)('PrismaWorkflowRepository', () => {
     expect(reloaded?.name).toBe('Updated name');
     expect(reloaded?.steps[1]?.config).toMatchObject({ instruction: 'Classify urgency.' });
   });
+
+  it("listByWorkspace returns only the workspace's own rows", async () => {
+    const mine = Workflow.create({
+      name: 'Mine (list test)',
+      steps: [
+        WorkflowStep.trigger({ kind: 'webhook' }),
+        WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
+        WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
+      ],
+      workspaceId,
+    });
+    const theirs = Workflow.create({
+      name: 'Theirs (list test)',
+      steps: [
+        WorkflowStep.trigger({ kind: 'webhook' }),
+        WorkflowStep.ai({ provider: Provider.CLAUDE, instruction: 'Summarize.' }),
+        WorkflowStep.destination({ destination: DestinationKind.SLACK, target: '#eng' }),
+      ],
+      workspaceId: otherWorkspaceId,
+    });
+    createdIds.push(mine.id.value, theirs.id.value);
+    await repository.save(mine);
+    await repository.save(theirs);
+
+    const results = await repository.listByWorkspace(workspaceId);
+
+    expect(results.some((w) => w.id.equals(mine.id))).toBe(true);
+    expect(results.some((w) => w.id.equals(theirs.id))).toBe(false);
+  });
+
+  it('listByWorkspace returns an empty array for an empty workspace', async () => {
+    const emptyWorkspaceId = WorkspaceId.generate();
+    await createTestWorkspace(prisma, emptyWorkspaceId);
+
+    const results = await repository.listByWorkspace(emptyWorkspaceId);
+
+    expect(results).toEqual([]);
+    await deleteTestWorkspace(prisma, emptyWorkspaceId);
+  });
 });

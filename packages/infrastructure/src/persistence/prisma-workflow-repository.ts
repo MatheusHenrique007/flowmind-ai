@@ -37,6 +37,23 @@ export class PrismaWorkflowRepository implements WorkflowRepository {
       return null;
     }
 
+    return this.toDomain(row);
+  }
+
+  /** Only ever returns rows belonging to `workspaceId`. */
+  async listByWorkspace(workspaceId: WorkspaceId): Promise<Workflow[]> {
+    const rows = await this.prisma.workflow.findMany({
+      where: { workspaceId: workspaceId.value },
+    });
+    return rows.map((row) => this.toDomain(row));
+  }
+
+  private toDomain(row: {
+    id: string;
+    name: string;
+    steps: unknown;
+    workspaceId: string;
+  }): Workflow {
     const storedSteps = row.steps as unknown as StoredStep[];
     const steps = storedSteps.map((stored) => this.toDomainStep(stored));
 
