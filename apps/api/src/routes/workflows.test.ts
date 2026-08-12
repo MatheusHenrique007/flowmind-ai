@@ -28,6 +28,7 @@ import {
 import {
   DestinationKind,
   Provider,
+  WorkflowId,
   type Email,
   type RefreshToken,
   type Schedule,
@@ -36,7 +37,6 @@ import {
   type User,
   type UserId,
   type Workflow,
-  type WorkflowId,
   type WorkflowRun,
   type WorkflowRunId,
   type Workspace,
@@ -209,13 +209,14 @@ function validWorkflowBody(name = 'Webhook to Slack') {
 describe('GET /workflows and GET /workflows/:id', () => {
   let app: FastifyInstance;
   let workflows: InMemoryWorkflowRepository;
+  let runs: InMemoryWorkflowRunRepository;
 
   beforeEach(async () => {
     const users = new InMemoryUserRepository();
     const workspaces = new InMemoryWorkspaceRepository(users);
     const refreshTokens = new InMemoryRefreshTokenRepository();
     workflows = new InMemoryWorkflowRepository();
-    const runs = new InMemoryWorkflowRunRepository();
+    runs = new InMemoryWorkflowRunRepository();
     const queue = new RecordingWorkflowQueue();
     const tokenService = new JoseTokenService({ secret: TEST_ENV.ACCESS_TOKEN_SECRET });
 
@@ -369,5 +370,69 @@ describe('GET /workflows and GET /workflows/:id', () => {
     });
 
     expect(response.statusCode).toBe(404);
+  });
+
+  describe('lastRun indicator on GET /workflows', () => {
+    /** Runs `workflowId` directly through ExecuteWorkflow against the same in-memory
+     * stores the route reads from, so GET /workflows sees a real, persisted run. */
+    async function runWorkflow(workflowId: string, engineResult: { success: boolean }) {
+      const workflow = workflows.workflows.get(workflowId);
+      if (!workflow) throw new Error('workflow not seeded');
+      const engine = {
+        execute: async () => ({
+          success: engineResult.success,
+          context: {},
+          stepResults: [],
+          stepsExecuted: 1,
+          ...(engineResult.success ? {} : { error: 'boom' }),
+        }),
+      };
+      const execute = new ExecuteWorkflow(workflows, runs, engine as never);
+      await execute.execute(workflow.workspaceId, WorkflowId.create(workflowId), {});
+    }
+
+    it('is null for a workflow that has never been executed', async () => {
+      const { accessToken } = await register();
+      await createWorkflow(accessToken, 'Never run');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/workflows',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      const [workflow] = response.json<{ lastRun: { status: string } | null }[]>();
+      expect(workflow?.lastRun).toBeNull();
+    });
+
+    it("reflects the most recent run's status when it succeeded", async () => {
+      const { accessToken } = await register();
+      const created = await createWorkflow(accessToken, 'Runs fine');
+      await runWorkflow(created.id, { success: true });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/workflows',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      const [workflow] = response.json<{ lastRun: { status: string } | null }[]>();
+      expect(workflow?.lastRun?.status).toBe('SUCCEEDED');
+    });
+
+    it("reflects the most recent run's status when it failed", async () => {
+      const { accessToken } = await register();
+      const created = await createWorkflow(accessToken, 'Runs badly');
+      await runWorkflow(created.id, { success: false });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/workflows',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      const [workflow] = response.json<{ lastRun: { status: string } | null }[]>();
+      expect(workflow?.lastRun?.status).toBe('FAILED');
+    });
   });
 });

@@ -2,9 +2,11 @@ import {
   WorkflowNotFoundError,
   type CreateWorkflow,
   type GetWorkflow,
+  type ListWorkflowRuns,
   type ListWorkflows,
   type UpdateWorkflow,
   type WorkflowInput,
+  type WorkflowRunView,
 } from '@flowmind/application';
 import {
   InvalidStepConfigError,
@@ -53,6 +55,13 @@ function isValidationError(error: unknown): error is Error {
  * client cannot even express "create this in someone else's workspace". A
  * workflow owned by another workspace produces 404, not 403 (ADR-0004).
  */
+/** Most-recently-started run wins; runs without a startedAt (shouldn't happen post-execution) sort last. */
+function mostRecentlyStarted(a: WorkflowRunView, b: WorkflowRunView): number {
+  const aTime = a.startedAt?.getTime() ?? -Infinity;
+  const bTime = b.startedAt?.getTime() ?? -Infinity;
+  return bTime - aTime;
+}
+
 export async function registerWorkflowRoutes(
   app: FastifyInstance,
   deps: {
@@ -60,12 +69,38 @@ export async function registerWorkflowRoutes(
     updateWorkflow: UpdateWorkflow;
     listWorkflows: ListWorkflows;
     getWorkflow: GetWorkflow;
+    listWorkflowRuns: ListWorkflowRuns;
     requireAuth: preHandlerAsyncHookHandler;
   },
 ): Promise<void> {
   app.get('/workflows', { preHandler: deps.requireAuth }, async (request) => {
-    const workflows = await deps.listWorkflows.execute(authOf(request).workspaceId);
-    return workflows.map((workflow) => ({ id: workflow.id.value, name: workflow.name }));
+    const workspaceId = authOf(request).workspaceId;
+    const [workflows, runs] = await Promise.all([
+      deps.listWorkflows.execute(workspaceId),
+      deps.listWorkflowRuns.execute(workspaceId),
+    ]);
+
+    const runsByWorkflowId = new Map<string, WorkflowRunView[]>();
+    for (const run of runs) {
+      const existing = runsByWorkflowId.get(run.workflowId);
+      if (existing) {
+        existing.push(run);
+      } else {
+        runsByWorkflowId.set(run.workflowId, [run]);
+      }
+    }
+
+    return workflows.map((workflow) => {
+      const runsForWorkflow = runsByWorkflowId.get(workflow.id.value);
+      const lastRun = runsForWorkflow
+        ? [...runsForWorkflow].sort(mostRecentlyStarted)[0]
+        : undefined;
+      return {
+        id: workflow.id.value,
+        name: workflow.name,
+        lastRun: lastRun ? { status: lastRun.status, finishedAt: lastRun.finishedAt } : null,
+      };
+    });
   });
 
   app.get<{ Params: { id: string } }>(
