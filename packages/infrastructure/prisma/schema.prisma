@@ -20,6 +20,7 @@ model Workspace {
   createdAt   DateTime   @default(now())
   users       User[]
   workflows   Workflow[]
+  schedules   Schedule[]
 
   @@map("workspaces")
 }
@@ -62,8 +63,29 @@ model Workflow {
   workspace   Workspace     @relation(fields: [workspaceId], references: [id])
   createdAt   DateTime      @default(now())
   runs        WorkflowRun[]
+  schedules   Schedule[]
 
   @@map("workflows")
+}
+
+// Schedule -> Workflow cascades: a deleted Workflow leaves no dangling
+// Schedule row. Schedule -> Workspace does not cascade, matching how
+// Workflow -> Workspace is modeled (Workspaces are never deleted in this
+// release). No BullMQ registration is touched by this cascade — deleting a
+// Workflow directly in Postgres does not unregister any Schedule's queue job;
+// this release's only supported deletion path for a Schedule is
+// DELETE /schedules/:id (see docs/adr/0006-schedule-execution-strategy.md).
+model Schedule {
+  id             String    @id
+  workflowId     String
+  workflow       Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+  cronExpression String
+  createdAt      DateTime  @default(now())
+
+  @@index([workspaceId])
+  @@map("schedules")
 }
 
 model WorkflowRun {

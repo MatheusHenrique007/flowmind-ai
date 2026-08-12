@@ -8,6 +8,7 @@ import type { CompositionRoot } from './composition-root.js';
 import { buildCompositionRoot } from './composition-root.js';
 import { allowedOrigins, loadEnv, type Env } from './env.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerScheduleRoutes } from './routes/schedules.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerWorkflowRunRoutes } from './routes/workflow-runs.js';
 import { registerWorkflowRoutes } from './routes/workflows.js';
@@ -47,6 +48,13 @@ export async function buildServer(root: CompositionRoot, env: Env): Promise<Fast
   await registerWorkflowRoutes(app, {
     createWorkflow: root.createWorkflow,
     updateWorkflow: root.updateWorkflow,
+    requireAuth,
+  });
+  await registerScheduleRoutes(app, {
+    createSchedule: root.createSchedule,
+    listSchedules: root.listSchedules,
+    deleteSchedule: root.deleteSchedule,
+    computeNextRunAt: root.computeNextRunAt,
     requireAuth,
   });
 

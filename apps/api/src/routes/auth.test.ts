@@ -1,8 +1,11 @@
 import {
+  CreateSchedule,
   CreateWorkflow,
+  DeleteSchedule,
   ExecuteWorkflow,
   GetCurrentUser,
   GetWorkflowRun,
+  ListSchedules,
   ListWorkflowRuns,
   LoginUser,
   LogoutUser,
@@ -11,6 +14,8 @@ import {
   UpdateWorkflow,
   type Clock,
   type RefreshTokenRepository,
+  type ScheduleQueue,
+  type ScheduleRepository,
   type UserRepository,
   type WorkflowQueue,
   type WorkflowRepository,
@@ -23,6 +28,8 @@ import {
   Provider,
   type Email,
   type RefreshToken,
+  type Schedule,
+  type ScheduleId,
   type TokenFamilyId,
   type User,
   type UserId,
@@ -140,6 +147,39 @@ class RecordingWorkflowQueue implements WorkflowQueue {
   }
 }
 
+class InMemoryScheduleRepository implements ScheduleRepository {
+  readonly schedules = new Map<string, Schedule>();
+  async save(schedule: Schedule) {
+    this.schedules.set(schedule.id.value, schedule);
+  }
+  async findById(id: ScheduleId, workspaceId: WorkspaceId) {
+    const schedule = this.schedules.get(id.value);
+    return schedule && schedule.workspaceId.equals(workspaceId) ? schedule : null;
+  }
+  async listByWorkspace(workspaceId: WorkspaceId) {
+    return [...this.schedules.values()].filter((s) => s.workspaceId.equals(workspaceId));
+  }
+  async delete(id: ScheduleId, workspaceId: WorkspaceId) {
+    const schedule = this.schedules.get(id.value);
+    if (schedule && schedule.workspaceId.equals(workspaceId)) {
+      this.schedules.delete(id.value);
+    }
+  }
+  async countByWorkspace(workspaceId: WorkspaceId) {
+    return (await this.listByWorkspace(workspaceId)).length;
+  }
+}
+
+class InMemoryScheduleQueue implements ScheduleQueue {
+  readonly registered = new Map<string, Schedule>();
+  async register(schedule: Schedule) {
+    this.registered.set(schedule.id.value, schedule);
+  }
+  async unregister(scheduleId: ScheduleId) {
+    this.registered.delete(scheduleId.value);
+  }
+}
+
 const systemClock: Clock = { now: () => new Date() };
 
 const TEST_ENV = loadEnv({
@@ -183,12 +223,20 @@ describe('auth and protected routes', () => {
     queue = new RecordingWorkflowQueue();
     const tokenService = new JoseTokenService({ secret: TEST_ENV.ACCESS_TOKEN_SECRET });
 
+    const schedules = new InMemoryScheduleRepository();
+    const scheduleQueue = new InMemoryScheduleQueue();
+
     const root: CompositionRoot = {
       workflowQueue: queue,
+      scheduleQueue,
       createWorkflow: new CreateWorkflow(workflows),
       updateWorkflow: new UpdateWorkflow(workflows),
       getWorkflowRun: new GetWorkflowRun(runs),
       listWorkflowRuns: new ListWorkflowRuns(runs),
+      createSchedule: new CreateSchedule(schedules, scheduleQueue, workflows),
+      listSchedules: new ListSchedules(schedules),
+      deleteSchedule: new DeleteSchedule(schedules, scheduleQueue),
+      computeNextRunAt: async () => null,
       registerUser: new RegisterUser(users, workspaces, refreshTokens, tokenService, systemClock),
       loginUser: new LoginUser(users, refreshTokens, tokenService, systemClock),
       refreshSession: new RefreshSession(refreshTokens, users, tokenService, systemClock),
