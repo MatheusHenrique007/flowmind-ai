@@ -10,4 +10,6 @@ export interface WorkflowRepository {
   findById(id: WorkflowId, workspaceId: WorkspaceId): Promise<Workflow | null>;
   /** The workspace is taken from the Workflow itself, which always carries one. */
   save(workflow: Workflow): Promise<void>;
+  /** Only ever returns workflows belonging to `workspaceId`. */
+  listByWorkspace(workspaceId: WorkspaceId): Promise<Workflow[]>;
 }
