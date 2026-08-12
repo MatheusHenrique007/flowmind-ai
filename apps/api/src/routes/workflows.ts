@@ -1,6 +1,8 @@
 import {
   WorkflowNotFoundError,
   type CreateWorkflow,
+  type GetWorkflow,
+  type ListWorkflows,
   type UpdateWorkflow,
   type WorkflowInput,
 } from '@flowmind/application';
@@ -56,9 +58,39 @@ export async function registerWorkflowRoutes(
   deps: {
     createWorkflow: CreateWorkflow;
     updateWorkflow: UpdateWorkflow;
+    listWorkflows: ListWorkflows;
+    getWorkflow: GetWorkflow;
     requireAuth: preHandlerAsyncHookHandler;
   },
 ): Promise<void> {
+  app.get('/workflows', { preHandler: deps.requireAuth }, async (request) => {
+    const workflows = await deps.listWorkflows.execute(authOf(request).workspaceId);
+    return workflows.map((workflow) => ({ id: workflow.id.value, name: workflow.name }));
+  });
+
+  app.get<{ Params: { id: string } }>(
+    '/workflows/:id',
+    { preHandler: deps.requireAuth },
+    async (request, reply) => {
+      try {
+        const workflow = await deps.getWorkflow.execute(
+          authOf(request).workspaceId,
+          WorkflowId.create(request.params.id),
+        );
+        return {
+          id: workflow.id.value,
+          name: workflow.name,
+          steps: workflow.steps.map((step) => step.config),
+        };
+      } catch (error) {
+        if (error instanceof WorkflowNotFoundError) {
+          return reply.status(404).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
   app.post('/workflows', { preHandler: deps.requireAuth }, async (request, reply) => {
     try {
       const input = workflowInputSchema.parse(request.body) as WorkflowInput;

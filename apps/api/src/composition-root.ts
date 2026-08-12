@@ -9,8 +9,10 @@ import {
   DeleteSchedule,
   ExecuteWorkflow,
   GetCurrentUser,
+  GetWorkflow,
   GetWorkflowRun,
   ListSchedules,
+  ListWorkflows,
   ListWorkflowRuns,
   LoginUser,
   LogoutUser,
@@ -68,6 +70,8 @@ export interface CompositionRoot {
   scheduleQueue: ScheduleQueue;
   createWorkflow: CreateWorkflow;
   updateWorkflow: UpdateWorkflow;
+  listWorkflows: ListWorkflows;
+  getWorkflow: GetWorkflow;
   getWorkflowRun: GetWorkflowRun;
   listWorkflowRuns: ListWorkflowRuns;
   createSchedule: CreateSchedule;
@@ -151,6 +155,8 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
     scheduleQueue,
     createWorkflow: new CreateWorkflow(workflowRepository),
     updateWorkflow: new UpdateWorkflow(workflowRepository),
+    listWorkflows: new ListWorkflows(workflowRepository),
+    getWorkflow: new GetWorkflow(workflowRepository),
     getWorkflowRun: new GetWorkflowRun(workflowRunRepository),
     listWorkflowRuns: new ListWorkflowRuns(workflowRunRepository),
     createSchedule: new CreateSchedule(scheduleRepository, scheduleQueue, workflowRepository),
