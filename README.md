@@ -15,7 +15,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**Current Version**: v0.6.0 · **Status**: Scheduling · **Next**: unscheduled (see [Roadmap](#roadmap))
+**Current Version**: v0.7.0 · **Status**: Workflow Management · **Next**: unscheduled (see [Roadmap](#roadmap))
 
 </div>
 
@@ -39,14 +39,14 @@ a real product team would build it, in public, one Release at a time:
 
 ## Project Status
 
-|                                  |                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Version**                      | v0.6.0                                                                                                                                                                                                                                                                                                                                               |
-| **Stage**                        | Visual editor, multi-tenant auth, multi-provider AI, and recurring Schedules all shipped                                                                                                                                                                                                                                                             |
-| **What works today**             | `Webhook → (Claude \| OpenAI \| Gemini) → Slack` authored visually, workspace-scoped auth, full run history, dependency health check, plus recurring UTC-cron `Schedule`s that fire a Workflow automatically via BullMQ's Job Scheduler API; any AI step with no matching API key runs against a clearly-labeled `MockAIProvider` instead of failing |
-| **What doesn't exist yet**       | Timezone support, pausing a Schedule, runtime fallback between AI providers, additional triggers/destinations, billing                                                                                                                                                                                                                               |
-| **CI**                           | ![CI](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml/badge.svg)                                                                                                                                                                                                                                                          |
-| **Test coverage (this release)** | 60+ unit tests (Domain/Application/Engine) + real Postgres + real Redis integration tests                                                                                                                                                                                                                                                            |
+|                                  |                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Version**                      | v0.7.0                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Stage**                        | Visual editor, multi-tenant auth, multi-provider AI, recurring Schedules, and workflow listing/reopening all shipped                                                                                                                                                                                                                                                                              |
+| **What works today**             | `Webhook → (Claude \| OpenAI \| Gemini) → Slack` authored visually, workspace-scoped auth, full run history, dependency health check, recurring UTC-cron `Schedule`s, and a "My Workflows" list to reopen and edit any previously-saved Workflow instead of only ever building a new one; any AI step with no matching API key runs against a clearly-labeled `MockAIProvider` instead of failing |
+| **What doesn't exist yet**       | Deleting a Workflow, timezone support, pausing a Schedule, runtime fallback between AI providers, additional triggers/destinations, billing                                                                                                                                                                                                                                                       |
+| **CI**                           | ![CI](https://github.com/MatheusHenrique007/flowmind-ai/actions/workflows/ci.yml/badge.svg)                                                                                                                                                                                                                                                                                                       |
+| **Test coverage (this release)** | 60+ unit tests (Domain/Application/Engine) + real Postgres + real Redis integration tests                                                                                                                                                                                                                                                                                                         |
 
 ## Quick Start
 
@@ -73,7 +73,9 @@ configure, and demo in under 10 minutes; **v0.3.0** replaced the seed script wit
 React Flow-based editor; **v0.4.0** added workspace-scoped multi-tenant auth; **v0.5.0** added
 real OpenAI/Gemini adapters alongside Claude, with a mock-provider fallback for undemoed keys;
 **v0.6.0** added recurring, UTC-cron `Schedule`s that trigger a Workflow automatically via
-BullMQ's Job Scheduler API, with no timezone support yet.
+BullMQ's Job Scheduler API, with no timezone support yet; **v0.7.0** added a "My Workflows" list
+page and the ability to reopen and edit an existing Workflow instead of only ever creating a new
+one.
 
 Visual, React Flow-based editor lives in `apps/web` (shipped v0.3.0) — see [Roadmap](#roadmap).
 
@@ -245,9 +247,10 @@ See [docs/demo/record-demo.md](docs/demo/record-demo.md) for exactly how to reco
 - **v0.3.0** — Visual Workflow Builder (React Flow canvas authors the workflow) ✅
 - **v0.4.0** — Multi-Tenant Auth (register/login, workspace-scoped workflows) ✅
 - **v0.5.0** — Multi-Provider AI (real OpenAI/Gemini adapters, mock-provider fallback) ✅
-- **v0.6.0** — Scheduling (UTC-cron `Schedule`s, BullMQ Job Scheduler API) ✅ (this release)
-- **Future** — Timezone support, pausing a Schedule, runtime fallback between AI providers,
-  billing, node marketplace
+- **v0.6.0** — Scheduling (UTC-cron `Schedule`s, BullMQ Job Scheduler API) ✅
+- **v0.7.0** — Workflow Management (list/reopen/edit existing Workflows) ✅ (this release)
+- **Future** — Deleting a Workflow, timezone support, pausing a Schedule, runtime fallback between
+  AI providers, billing, node marketplace
 
 See [ROADMAP.md](ROADMAP.md) for full detail on every release.
 
