@@ -130,8 +130,30 @@ record: [docs/adr/0005-provider-selection-strategy.md](docs/adr/0005-provider-se
   Engine test), extended rather than replaced
 - `apps/web`'s AI node dropdown gains OpenAI/Gemini options (no Mock option, ever)
 
+## v0.6.0 — Scheduling ✅
+
+Full PRD: [docs/prd/v0.6.0-scheduling.md](docs/prd/v0.6.0-scheduling.md). Decision record:
+[docs/adr/0006-schedule-execution-strategy.md](docs/adr/0006-schedule-execution-strategy.md).
+
+- New `Schedule` Domain entity (UTC-only cron expression, structurally validated with no new
+  Domain dependency) plus `CreateSchedule`/`ListSchedules`/`DeleteSchedule` Application use cases
+- `PrismaScheduleRepository` and `BullMQScheduleQueue` — the latter wraps the exact same
+  `workflow-execution` Queue instance webhook enqueues already use, registering recurring jobs via
+  BullMQ's Job Scheduler API (`upsertJobScheduler`/`removeJobScheduler`), never the deprecated
+  `repeat` option
+- Ordering-plus-compensation consistency strategy for the Postgres/BullMQ dual-write (no saga
+  framework, no status column, no reconciliation job) — see ADR-0006
+- Hard 20-schedules-per-workspace limit enforced in Application; cross-tenant access reads as 404,
+  matching the existing Workflow/WorkflowRun pattern
+- `POST`/`GET`/`DELETE /schedules` plus a minimal frontend panel scoped to the currently-open
+  Workflow, with a UTC-only disclaimer and no timezone picker
+- Zero changes to `packages/engine`; the Worker gains at most one unused optional field's type
+
 ## Future (unscheduled, directional only)
 
+- Timezone support for Schedules (deferred by ADR-0006 — BullMQ's `RepeatOptions.tz` already
+  supports this without a storage migration)
+- Pausing/resuming a Schedule without deleting it
 - Automatic runtime fallback between AI providers (explicitly deferred by ADR-0005)
 - Billing and subscription management
 - Marketplace of third-party/community node types
