@@ -4,16 +4,20 @@ import { GeminiProvider } from '@flowmind/ai-gemini';
 import { MockAIProvider } from '@flowmind/ai-mock';
 import { OpenAIProvider } from '@flowmind/ai-openai';
 import {
+  CreateSchedule,
   CreateWorkflow,
+  DeleteSchedule,
   ExecuteWorkflow,
   GetCurrentUser,
   GetWorkflowRun,
+  ListSchedules,
   ListWorkflowRuns,
   LoginUser,
   LogoutUser,
   RefreshSession,
   RegisterUser,
   UpdateWorkflow,
+  type ScheduleQueue,
   type TokenService,
   type WorkflowQueue,
 } from '@flowmind/application';
@@ -28,12 +32,16 @@ import {
   TriggerExecutor,
 } from '@flowmind/engine';
 import {
+  BullMQScheduleQueue,
   checkHealth,
+  computeNextRun,
   createPrismaClient,
   createRedisConnection,
+  createWorkflowExecutionQueue,
   createWorkflowQueue,
   JoseTokenService,
   PrismaRefreshTokenRepository,
+  PrismaScheduleRepository,
   PrismaUserRepository,
   PrismaWorkflowRepository,
   PrismaWorkflowRunRepository,
@@ -57,10 +65,16 @@ export interface HealthReport {
 
 export interface CompositionRoot {
   workflowQueue: WorkflowQueue;
+  scheduleQueue: ScheduleQueue;
   createWorkflow: CreateWorkflow;
   updateWorkflow: UpdateWorkflow;
   getWorkflowRun: GetWorkflowRun;
   listWorkflowRuns: ListWorkflowRuns;
+  createSchedule: CreateSchedule;
+  listSchedules: ListSchedules;
+  deleteSchedule: DeleteSchedule;
+  /** Presentation calls this directly to attach nextRunAt to the GET /schedules response. */
+  computeNextRunAt: (scheduleId: string) => Promise<Date | null>;
   registerUser: RegisterUser;
   loginUser: LoginUser;
   refreshSession: RefreshSession;
@@ -88,6 +102,7 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
   const userRepository = new PrismaUserRepository(prisma);
   const workspaceRepository = new PrismaWorkspaceRepository(prisma);
   const refreshTokenRepository = new PrismaRefreshTokenRepository(prisma);
+  const scheduleRepository = new PrismaScheduleRepository(prisma);
 
   const clock = new SystemClock();
   const tokenService = new JoseTokenService({
@@ -122,15 +137,26 @@ export function buildCompositionRoot(env: Env): CompositionRoot {
   const engine = new Engine(registry, clock);
   const executeWorkflow = new ExecuteWorkflow(workflowRepository, workflowRunRepository, engine);
 
-  const workflowQueue = createWorkflowQueue(redisConnection);
+  // Exactly one BullMQ Queue instance for the workflow-execution queue name:
+  // BullMQWorkflowQueue (one-shot webhook enqueues) and BullMQScheduleQueue
+  // (recurring Schedule registration) both wrap this same instance, never
+  // construct their own (see ADR-0006).
+  const workflowExecutionQueue = createWorkflowExecutionQueue(redisConnection);
+  const workflowQueue = createWorkflowQueue(workflowExecutionQueue);
+  const scheduleQueue = new BullMQScheduleQueue(workflowExecutionQueue);
   const worker = startWorkflowWorker({ connection: redisConnection, executeWorkflow });
 
   return {
     workflowQueue,
+    scheduleQueue,
     createWorkflow: new CreateWorkflow(workflowRepository),
     updateWorkflow: new UpdateWorkflow(workflowRepository),
     getWorkflowRun: new GetWorkflowRun(workflowRunRepository),
     listWorkflowRuns: new ListWorkflowRuns(workflowRunRepository),
+    createSchedule: new CreateSchedule(scheduleRepository, scheduleQueue, workflowRepository),
+    listSchedules: new ListSchedules(scheduleRepository),
+    deleteSchedule: new DeleteSchedule(scheduleRepository, scheduleQueue),
+    computeNextRunAt: (scheduleId: string) => computeNextRun(workflowExecutionQueue, scheduleId),
     registerUser: new RegisterUser(
       userRepository,
       workspaceRepository,

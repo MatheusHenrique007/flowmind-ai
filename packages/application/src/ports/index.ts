@@ -3,6 +3,8 @@ export * from './workflow-run-repository.js';
 export * from './workflow-run-view.js';
 export * from './workflow-engine.js';
 export * from './workflow-queue.js';
+export * from './schedule-repository.js';
+export * from './schedule-queue.js';
 export * from './clock.js';
 export * from './user-repository.js';
 export * from './workspace-repository.js';

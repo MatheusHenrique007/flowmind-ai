@@ -9,4 +9,12 @@ export interface WorkflowExecutionJobData {
    */
   workspaceId: string;
   payload: unknown;
+  /**
+   * Present only on jobs produced by a recurring Schedule's job scheduler
+   * (BullMQScheduleQueue); absent on one-shot webhook enqueues. Purely
+   * informational for now — the Worker (start-workflow-worker.ts) ignores it,
+   * it exists so a future release can distinguish scheduled from webhook runs
+   * without another migration to this job payload shape.
+   */
+  scheduleId?: string;
 }

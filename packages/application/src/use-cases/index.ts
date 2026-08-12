@@ -10,3 +10,6 @@ export * from './login-user.js';
 export * from './refresh-session.js';
 export * from './logout-user.js';
 export * from './get-current-user.js';
+export * from './create-schedule.js';
+export * from './list-schedules.js';
+export * from './delete-schedule.js';
