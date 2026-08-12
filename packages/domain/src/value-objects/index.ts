@@ -1,5 +1,6 @@
 export * from './entity-id.js';
 export * from './workflow-id.js';
+export * from './schedule-id.js';
 export * from './workflow-run-id.js';
 export * from './workflow-step-id.js';
 export * from './workspace-id.js';

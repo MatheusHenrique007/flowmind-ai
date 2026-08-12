@@ -5,3 +5,6 @@ export * from './invalid-credentials-error.js';
 export * from './email-already-registered-error.js';
 export * from './invalid-refresh-token-error.js';
 export * from './user-not-found-error.js';
+export * from './schedule-limit-exceeded-error.js';
+export * from './schedule-registration-failed-error.js';
+export * from './schedule-not-found-error.js';
