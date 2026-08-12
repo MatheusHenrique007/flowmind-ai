@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -13,9 +14,9 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { createWorkflow, executeWorkflow, updateWorkflow } from '../lib/api-client';
+import { createWorkflow, executeWorkflow, getWorkflow, updateWorkflow } from '../lib/api-client';
 import type { WorkflowFlowNode } from '../lib/node-types';
-import { mapFlowToWorkflowInput } from '../lib/workflow-mapper';
+import { mapFlowToWorkflowInput, mapWorkflowToFlow } from '../lib/workflow-mapper';
 
 import { AINode } from './nodes/ai-node';
 import { DestinationNode } from './nodes/destination-node';
@@ -57,14 +58,45 @@ type RunState =
   | { status: 'done'; result: string }
   | { status: 'error'; message: string };
 
-function FlowEditorInner() {
-  const [nodes, , onNodesChange] = useNodesState<WorkflowFlowNode['data']>(INITIAL_NODES);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(INITIAL_EDGES);
-  const [name, setName] = useState('Webhook to Slack');
+function FlowEditorInner({ workflowId }: { workflowId?: string }) {
+  const router = useRouter();
+  const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowFlowNode['data']>(
+    workflowId ? [] : INITIAL_NODES,
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(workflowId ? [] : INITIAL_EDGES);
+  const [name, setName] = useState(workflowId ? '' : 'Webhook to Slack');
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ status: 'idle' });
   const [runState, setRunState] = useState<RunState>({ status: 'idle' });
   const [payload, setPayload] = useState('Customer reported a checkout error and needs help.');
+
+  useEffect(() => {
+    if (!workflowId) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const workflow = await getWorkflow(workflowId);
+        if (cancelled) {
+          return;
+        }
+        const { nodes: loadedNodes, edges: loadedEdges } = mapWorkflowToFlow(workflow);
+        setNodes(loadedNodes);
+        setEdges(loadedEdges);
+        setName(workflow.name);
+        setSaveState({ status: 'saved', workflowId: workflow.id, name: workflow.name });
+      } catch (cause) {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : 'Failed to load the workflow.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Only re-runs if a different workflow id is opened.
+  }, [workflowId]);
 
   const onConnect = useCallback(
     (connection: Connection) => setEdges((current) => addEdge(connection, current)),
@@ -89,6 +121,7 @@ function FlowEditorInner() {
           : await createWorkflow(mapped.input);
       setSaveState({ status: 'saved', workflowId: workflow.id, name: workflow.name });
       setRunState({ status: 'idle' });
+      router.push('/');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Failed to save the workflow.');
     }
@@ -117,6 +150,12 @@ function FlowEditorInner() {
   return (
     <div className="flex h-screen w-screen flex-col">
       <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+        <button
+          onClick={() => router.push('/')}
+          className="text-sm text-slate-500 hover:text-slate-900"
+        >
+          &larr; My Workflows
+        </button>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -175,10 +214,10 @@ function FlowEditorInner() {
   );
 }
 
-export function FlowEditor() {
+export function FlowEditor({ workflowId }: { workflowId?: string } = {}) {
   return (
     <ReactFlowProvider>
-      <FlowEditorInner />
+      <FlowEditorInner workflowId={workflowId} />
     </ReactFlowProvider>
   );
 }

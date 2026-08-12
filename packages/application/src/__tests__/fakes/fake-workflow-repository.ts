@@ -25,4 +25,8 @@ export class FakeWorkflowRepository implements WorkflowRepository {
   async save(workflow: Workflow): Promise<void> {
     this.workflows.set(workflow.id.value, workflow);
   }
+
+  async listByWorkspace(workspaceId: WorkspaceId): Promise<Workflow[]> {
+    return [...this.workflows.values()].filter((w) => w.workspaceId.equals(workspaceId));
+  }
 }

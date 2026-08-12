@@ -4,9 +4,11 @@ import {
   DeleteSchedule,
   ExecuteWorkflow,
   GetCurrentUser,
+  GetWorkflow,
   GetWorkflowRun,
   ListSchedules,
   ListWorkflowRuns,
+  ListWorkflows,
   LoginUser,
   LogoutUser,
   RefreshSession,
@@ -107,6 +109,9 @@ class InMemoryWorkflowRepository implements WorkflowRepository {
   }
   async save(workflow: Workflow) {
     this.workflows.set(workflow.id.value, workflow);
+  }
+  async listByWorkspace(workspaceId: WorkspaceId) {
+    return [...this.workflows.values()].filter((w) => w.workspaceId.equals(workspaceId));
   }
 }
 
@@ -224,6 +229,8 @@ describe('schedules routes', () => {
       scheduleQueue,
       createWorkflow: new CreateWorkflow(workflows),
       updateWorkflow: new UpdateWorkflow(workflows),
+      listWorkflows: new ListWorkflows(workflows),
+      getWorkflow: new GetWorkflow(workflows),
       getWorkflowRun: new GetWorkflowRun(runs),
       listWorkflowRuns: new ListWorkflowRuns(runs),
       createSchedule: new CreateSchedule(scheduleRepository, scheduleQueue, workflows),

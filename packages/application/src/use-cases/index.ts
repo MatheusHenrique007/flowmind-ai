@@ -3,6 +3,8 @@ export * from './get-workflow-run.js';
 export * from './list-workflow-runs.js';
 export * from './create-workflow.js';
 export * from './update-workflow.js';
+export * from './list-workflows.js';
+export * from './get-workflow.js';
 export * from './workflow-input.js';
 export * from './auth-session.js';
 export * from './register-user.js';

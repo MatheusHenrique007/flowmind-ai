@@ -149,6 +149,25 @@ Full PRD: [docs/prd/v0.6.0-scheduling.md](docs/prd/v0.6.0-scheduling.md). Decisi
   Workflow, with a UTC-only disclaimer and no timezone picker
 - Zero changes to `packages/engine`; the Worker gains at most one unused optional field's type
 
+## v0.7.0 — Workflow Management ✅
+
+Full PRD: [docs/prd/v0.7.0-workflow-management.md](docs/prd/v0.7.0-workflow-management.md).
+
+- `WorkflowRepository.listByWorkspace`, plus `ListWorkflows`/`GetWorkflow` Application use cases,
+  mirroring `ListSchedules`'s and `UpdateWorkflow`'s existing style exactly — `GetWorkflow` reuses
+  the existing `WorkflowNotFoundError`, no new error type
+- `GET /workflows` (lightweight `{id, name}` list) and `GET /workflows/:id` (full detail with
+  steps), both workspace-scoped, both 404 — never 403 — for another workspace's Workflow, matching
+  the existing `PUT /workflows/:id` pattern (ADR-0004)
+- `apps/web` routing split: `/` is now a "My Workflows" list page; the editor moved to
+  `/workflows/new` (create) and `/workflows/[id]` (open/edit)
+- A new inverse mapper (`mapWorkflowToFlow`) reconstructs the fixed Trigger/AI/Destination shape
+  into React Flow nodes/edges with a deterministic vertical layout — node positions were never
+  persisted, so none are restored
+- Zero changes to `packages/domain` or `packages/engine`; no Prisma migration — `listByWorkspace`
+  is a new query over the existing `workflow` table
+- Deleting a Workflow remains explicitly out of scope, deferred to a future release
+
 ## Future (unscheduled, directional only)
 
 - Timezone support for Schedules (deferred by ADR-0006 — BullMQ's `RepeatOptions.tz` already

@@ -48,6 +48,8 @@ export async function buildServer(root: CompositionRoot, env: Env): Promise<Fast
   await registerWorkflowRoutes(app, {
     createWorkflow: root.createWorkflow,
     updateWorkflow: root.updateWorkflow,
+    listWorkflows: root.listWorkflows,
+    getWorkflow: root.getWorkflow,
     requireAuth,
   });
   await registerScheduleRoutes(app, {
