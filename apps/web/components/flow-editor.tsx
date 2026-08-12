@@ -19,8 +19,8 @@ import { mapFlowToWorkflowInput } from '../lib/workflow-mapper';
 
 import { AINode } from './nodes/ai-node';
 import { DestinationNode } from './nodes/destination-node';
-import { SchedulesPanel } from './schedules-panel';
 import { TriggerNode } from './nodes/trigger-node';
+import { SchedulesPanel } from './schedules-panel';
 
 const nodeTypes = { trigger: TriggerNode, ai: AINode, destination: DestinationNode };
 

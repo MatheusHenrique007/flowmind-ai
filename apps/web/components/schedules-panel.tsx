@@ -33,7 +33,6 @@ export function SchedulesPanel({ workflowId }: { workflowId: string }) {
 
   useEffect(() => {
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflowId]);
 
   async function handleCreate() {
