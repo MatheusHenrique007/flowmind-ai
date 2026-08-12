@@ -56,6 +56,11 @@ export async function listWorkflowRuns(): Promise<WorkflowRunDto[]> {
   return parseOrThrow<WorkflowRunDto[]>(response);
 }
 
+export async function getWorkflowRun(id: string): Promise<WorkflowRunDto> {
+  const response = await authorizedFetch(`${API_BASE_URL}/workflow-runs/${id}`);
+  return parseOrThrow<WorkflowRunDto>(response);
+}
+
 export async function listWorkflows(): Promise<WorkflowSummaryDto[]> {
   const response = await authorizedFetch(`${API_BASE_URL}/workflows`);
   return parseOrThrow<WorkflowSummaryDto[]>(response);
