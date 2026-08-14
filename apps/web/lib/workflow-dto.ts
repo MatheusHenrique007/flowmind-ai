@@ -38,10 +38,17 @@ export interface WorkflowDto {
   steps?: WorkflowStepDto[];
 }
 
+/** Most-recently-started run for a workflow, or null if it has never been executed. */
+export interface LastRunDto {
+  status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+  finishedAt?: string;
+}
+
 /** Lightweight shape returned by GET /workflows — no steps. */
 export interface WorkflowSummaryDto {
   id: string;
   name: string;
+  lastRun?: LastRunDto | null;
 }
 
 export interface WorkflowStepResultDto {
@@ -49,12 +56,18 @@ export interface WorkflowStepResultDto {
   status: 'SUCCEEDED' | 'FAILED';
   output?: unknown;
   error?: string;
+  startedAt: string;
+  finishedAt: string;
   durationMs: number;
 }
 
 export interface WorkflowRunDto {
   id: string;
   workflowId: string;
+  /** Resolved server-side from the owning Workflow; absent if it could no longer be found. */
+  workflowName?: string;
   status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+  startedAt?: string;
+  finishedAt?: string;
   stepResults: WorkflowStepResultDto[];
 }

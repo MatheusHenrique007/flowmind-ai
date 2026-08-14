@@ -50,6 +50,7 @@ export async function buildServer(root: CompositionRoot, env: Env): Promise<Fast
     updateWorkflow: root.updateWorkflow,
     listWorkflows: root.listWorkflows,
     getWorkflow: root.getWorkflow,
+    listWorkflowRuns: root.listWorkflowRuns,
     requireAuth,
   });
   await registerScheduleRoutes(app, {

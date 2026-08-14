@@ -6,12 +6,30 @@ import { useEffect, useState } from 'react';
 import { RequireAuth } from '../components/auth-provider';
 import { WorkspaceHeader } from '../components/workspace-header';
 import { listWorkflows } from '../lib/api-client';
-import type { WorkflowSummaryDto } from '../lib/workflow-dto';
+import type { LastRunDto, WorkflowSummaryDto } from '../lib/workflow-dto';
 
 type ListState =
   | { status: 'loading' }
   | { status: 'loaded'; workflows: WorkflowSummaryDto[] }
   | { status: 'error'; message: string };
+
+/** Simple success/failure/no-runs-yet indicator per workflow (v0.8.0 scope — no counts, no history here). */
+function LastRunIndicator({ lastRun }: { lastRun: LastRunDto | null | undefined }) {
+  if (!lastRun) {
+    return <span className="text-xs text-slate-400">No runs yet</span>;
+  }
+  if (lastRun.status === 'SUCCEEDED') {
+    return <span className="text-xs font-medium text-emerald-700">Last run succeeded</span>;
+  }
+  if (lastRun.status === 'FAILED') {
+    return <span className="text-xs font-medium text-red-700">Last run failed</span>;
+  }
+  return (
+    <span className="text-xs font-medium text-amber-700">
+      Last run {lastRun.status.toLowerCase()}
+    </span>
+  );
+}
 
 function WorkflowsList() {
   const [state, setState] = useState<ListState>({ status: 'loading' });
@@ -65,9 +83,10 @@ function WorkflowsList() {
             <li key={workflow.id}>
               <Link
                 href={`/workflows/${workflow.id}`}
-                className="block px-4 py-3 text-sm text-slate-900 hover:bg-slate-50"
+                className="flex items-center justify-between gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-slate-50"
               >
-                {workflow.name}
+                <span>{workflow.name}</span>
+                <LastRunIndicator lastRun={workflow.lastRun} />
               </Link>
             </li>
           ))}

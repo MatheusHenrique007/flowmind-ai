@@ -56,8 +56,8 @@ describe('workspace isolation', () => {
     createWorkflow = new CreateWorkflow(workflows);
     updateWorkflow = new UpdateWorkflow(workflows);
     executeWorkflow = new ExecuteWorkflow(workflows, runs, engine);
-    getWorkflowRun = new GetWorkflowRun(runs);
-    listWorkflowRuns = new ListWorkflowRuns(runs);
+    getWorkflowRun = new GetWorkflowRun(runs, workflows);
+    listWorkflowRuns = new ListWorkflowRuns(runs, workflows);
   });
 
   it('a workflow is created in the caller-supplied workspace', async () => {

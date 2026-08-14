@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -16,12 +16,15 @@ import 'reactflow/dist/style.css';
 
 import { createWorkflow, executeWorkflow, getWorkflow, updateWorkflow } from '../lib/api-client';
 import type { WorkflowFlowNode } from '../lib/node-types';
+import { pollForRunCompletion, snapshotRunIds, type PollHandle } from '../lib/run-polling';
+import type { WorkflowRunDto } from '../lib/workflow-dto';
 import { mapFlowToWorkflowInput, mapWorkflowToFlow } from '../lib/workflow-mapper';
 
 import { AINode } from './nodes/ai-node';
 import { DestinationNode } from './nodes/destination-node';
 import { TriggerNode } from './nodes/trigger-node';
 import { SchedulesPanel } from './schedules-panel';
+import { WorkflowRunsPanel } from './workflow-runs-panel';
 
 const nodeTypes = { trigger: TriggerNode, ai: AINode, destination: DestinationNode };
 
@@ -54,8 +57,8 @@ const INITIAL_EDGES: Edge[] = [
 type SaveState = { status: 'idle' } | { status: 'saved'; workflowId: string; name: string };
 type RunState =
   | { status: 'idle' }
-  | { status: 'running' }
-  | { status: 'done'; result: string }
+  | { status: 'running'; run?: WorkflowRunDto }
+  | { status: 'done'; run: WorkflowRunDto }
   | { status: 'error'; message: string };
 
 function FlowEditorInner({ workflowId }: { workflowId?: string }) {
@@ -69,6 +72,17 @@ function FlowEditorInner({ workflowId }: { workflowId?: string }) {
   const [saveState, setSaveState] = useState<SaveState>({ status: 'idle' });
   const [runState, setRunState] = useState<RunState>({ status: 'idle' });
   const [payload, setPayload] = useState('Customer reported a checkout error and needs help.');
+  const [historyRefreshSignal, setHistoryRefreshSignal] = useState(0);
+  const pollHandleRef = useRef<PollHandle | null>(null);
+
+  useEffect(
+    () => () => {
+      // Cancel any in-flight polling if the editor unmounts (e.g. navigating away
+      // mid-run) — the polling loop has no other way to know to stop.
+      pollHandleRef.current?.cancel();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!workflowId) {
@@ -132,18 +146,33 @@ function FlowEditorInner({ workflowId }: { workflowId?: string }) {
       setError('Save the workflow before executing it.');
       return;
     }
+    const workflowId = saveState.workflowId;
     setRunState({ status: 'running' });
     try {
-      await executeWorkflow(saveState.workflowId, { text: payload });
-      setRunState({
-        status: 'done',
-        result: 'Queued — check /workflow-runs for the result once the Worker processes it.',
+      // Snapshot *before* executing so the run this click creates can be told
+      // apart from any run that already existed (see lib/run-polling.ts).
+      const knownRunIds = await snapshotRunIds(workflowId);
+      await executeWorkflow(workflowId, { text: payload });
+
+      pollHandleRef.current?.cancel();
+      const handle = pollForRunCompletion(workflowId, knownRunIds, {
+        onUpdate: (run) => setRunState({ status: 'running', run }),
       });
+      pollHandleRef.current = handle;
+
+      const run = await handle.promise;
+      pollHandleRef.current = null;
+      setRunState({ status: 'done', run });
+      setHistoryRefreshSignal((signal) => signal + 1);
     } catch (cause) {
+      pollHandleRef.current = null;
       setRunState({
         status: 'error',
         message: cause instanceof Error ? cause.message : 'Failed to execute the workflow.',
       });
+      // The run may still have started even if polling itself failed (e.g.
+      // timed out) — refresh history so the panel can pick it up regardless.
+      setHistoryRefreshSignal((signal) => signal + 1);
     }
   }
 
@@ -187,8 +216,20 @@ function FlowEditorInner({ workflowId }: { workflowId?: string }) {
       </header>
 
       {error && <div className="bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
-      {runState.status === 'done' && (
-        <div className="bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{runState.result}</div>
+      {runState.status === 'running' && (
+        <div className="bg-amber-50 px-4 py-2 text-sm text-amber-700">
+          {runState.run ? `Run is ${runState.run.status}…` : 'Starting the run…'}
+        </div>
+      )}
+      {runState.status === 'done' && runState.run.status === 'SUCCEEDED' && (
+        <div className="bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+          Run succeeded — see it in the run history below.
+        </div>
+      )}
+      {runState.status === 'done' && runState.run.status !== 'SUCCEEDED' && (
+        <div className="bg-red-50 px-4 py-2 text-sm text-red-700">
+          Run finished as {runState.run.status} — see it in the run history below.
+        </div>
       )}
       {runState.status === 'error' && (
         <div className="bg-red-50 px-4 py-2 text-sm text-red-700">{runState.message}</div>
@@ -209,7 +250,15 @@ function FlowEditorInner({ workflowId }: { workflowId?: string }) {
         </ReactFlow>
       </div>
 
-      {saveState.status === 'saved' && <SchedulesPanel workflowId={saveState.workflowId} />}
+      {saveState.status === 'saved' && (
+        <>
+          <SchedulesPanel workflowId={saveState.workflowId} />
+          <WorkflowRunsPanel
+            workflowId={saveState.workflowId}
+            refreshSignal={historyRefreshSignal}
+          />
+        </>
+      )}
     </div>
   );
 }
