@@ -168,6 +168,26 @@ Full PRD: [docs/prd/v0.7.0-workflow-management.md](docs/prd/v0.7.0-workflow-mana
   is a new query over the existing `workflow` table
 - Deleting a Workflow remains explicitly out of scope, deferred to a future release
 
+## v0.8.0 — Observability / Run History UI ✅
+
+Full PRD: [docs/prd/v0.8.0-observability-run-history.md](docs/prd/v0.8.0-observability-run-history.md).
+
+- `WorkflowRunView` gains an optional `workflowName` field, resolved by `GetWorkflowRun` (one extra
+  `findById` lookup) and `ListWorkflowRuns` (one batched `listByWorkspace` call, no N+1)
+- `GET /workflows` composes the existing `ListWorkflows`/`ListWorkflowRuns` use cases to attach a
+  `lastRun: {status, finishedAt} | null` per Workflow — presentation-layer composition, no new
+  Application port
+- A run-history panel lives inside `/workflows/[id]`: past runs (status, timestamp, client-computed
+  duration, step count) plus a per-run detail view (each step's status/output/error)
+- After Execute, a snapshot-diff polling strategy tracks the newly-created run to a terminal status
+  without `POST /webhooks/:workflowId` ever needing to return a run id (its response stays exactly
+  `{accepted: true}`) — this also sidesteps a real race condition where a Schedule-triggered run
+  landing at the same moment could otherwise be misattributed to the manual click
+- Plain `setTimeout`-based polling with a bounded timeout, no WebSocket/SSE, no new dependency
+- Zero changes to `packages/domain`, `packages/engine`, or `packages/infrastructure`; no Prisma
+  migration
+- Retry/backoff on execution failure remains explicitly out of scope, deferred to a future release
+
 ## Future (unscheduled, directional only)
 
 - Timezone support for Schedules (deferred by ADR-0006 — BullMQ's `RepeatOptions.tz` already
